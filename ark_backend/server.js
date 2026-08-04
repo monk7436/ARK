@@ -20,6 +20,19 @@ app.use('/api/materials', materialsRoutes);
 app.use('/api/manufacturers', manufacturersRoutes);
 app.use('/api/inventory', inventoryRoutes);
 
+// Root Welcome Route
+app.get('/', (req, res) => {
+  res.send(`
+    <div style="font-family: system-ui, sans-serif; padding: 40px; text-align: center; background: #f8fafc; min-height: 100vh;">
+      <h1 style="color: #b45309; font-size: 32px;">✨ ARK Jewelry ERP Backend Engine</h1>
+      <p style="color: #64748b; font-size: 16px;">Node.js + Neon PostgreSQL API Engine is <strong>ONLINE & HEALTHY 🟢</strong></p>
+      <div style="margin-top: 20px;">
+        <a href="/api/health" style="background: #d97706; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">Check API Health</a>
+      </div>
+    </div>
+  `);
+});
+
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({
