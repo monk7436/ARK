@@ -11,7 +11,18 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 2. MATERIAL TRANSACTIONS TABLE (Gold 995 24K, Diamond, Gemstone)
+-- 2. CUSTOMERS TABLE (Jewelry Shop Owners & Retail Buyers)
+CREATE TABLE IF NOT EXISTS customers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    gstin VARCHAR(50) DEFAULT 'UNREGISTERED',
+    address TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 3. MATERIAL TRANSACTIONS TABLE (Gold 995 24K, Diamond, Gemstone)
 CREATE TABLE IF NOT EXISTS materials (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     timestamp TIMESTAMP DEFAULT NOW(),
@@ -29,7 +40,7 @@ CREATE TABLE IF NOT EXISTS materials (
     created_by UUID REFERENCES users(id)
 );
 
--- 3. MANUFACTURERS / KARIGARS TABLE
+-- 4. MANUFACTURERS / KARIGARS TABLE
 CREATE TABLE IF NOT EXISTS manufacturers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
@@ -42,7 +53,7 @@ CREATE TABLE IF NOT EXISTS manufacturers (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 4. TAGGED INVENTORY STOCK CATALOG TABLE
+-- 5. TAGGED INVENTORY STOCK CATALOG TABLE
 CREATE TABLE IF NOT EXISTS inventory (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tag_code VARCHAR(100) UNIQUE NOT NULL,
@@ -55,18 +66,23 @@ CREATE TABLE IF NOT EXISTS inventory (
     fine_weight DECIMAL(10, 3) NOT NULL,
     making_charge DECIMAL(10, 2) DEFAULT 0.00,
     status VARCHAR(30) DEFAULT 'IN_STOCK',
+    assigned_customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     photo_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 5. B2B & RETAIL INVOICES TABLE
+-- 6. B2B & RETAIL INVOICES TABLE
 CREATE TABLE IF NOT EXISTS invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invoice_number VARCHAR(100) UNIQUE NOT NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     customer_name VARCHAR(255) NOT NULL,
     gstin VARCHAR(50),
     customer_address TEXT,
     phone VARCHAR(20),
+    item_tag VARCHAR(100),
+    item_name VARCHAR(255),
+    net_weight DECIMAL(10, 3),
     invoice_date DATE DEFAULT CURRENT_DATE,
     gold_rate_applied DECIMAL(10, 2) NOT NULL,
     subtotal DECIMAL(14, 2) NOT NULL,

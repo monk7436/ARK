@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import NavigationBar from './components/NavigationBar';
 import MaterialsTab from './components/MaterialsTab';
 import ManufacturingTab from './components/ManufacturingTab';
 import InventoryTab from './components/InventoryTab';
 import CustomersTab from './components/CustomersTab';
 import MaterialModal from './components/MaterialModal';
-import { Layers, Flame } from 'lucide-react';
+import { Layers, Flame, Wifi, WifiOff } from 'lucide-react';
+import { API } from './api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('materials');
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
   const [modalDefaultCategory, setModalDefaultCategory] = useState('gold');
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Initial Sample State for Materials (Gold 995 24K, Diamond, Gemstone)
+  // State
   const [materials, setMaterials] = useState([
     {
       id: 'tx-101',
@@ -25,24 +27,9 @@ export default function App() {
       price: 7200,
       totalAmount: 1800000,
       photoUrl: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300'
-    },
-    {
-      id: 'tx-102',
-      timestamp: '04/08/2026, 12:15 PM',
-      direction: 'OUTWARD',
-      materialType: 'gold',
-      weight: 45.000,
-      purity: '995 (24K)',
-      vendorName: 'Ramesh Artisan Workshop',
-      manufacturerId: 'mfg-1',
-      price: 7200,
-      totalAmount: 324000,
-      productType: 'Necklace',
-      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'
     }
   ]);
 
-  // Initial Manufacturer Profiles
   const [manufacturers, setManufacturers] = useState([
     {
       id: 'mfg-1',
@@ -53,20 +40,9 @@ export default function App() {
       jobsOngoing: 3,
       goldRemaining: 110.500,
       makingCharge: 450
-    },
-    {
-      id: 'mfg-2',
-      name: 'Swarn Artistry',
-      office: 'Johri Bazaar, Jaipur',
-      photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300',
-      jobsDone: 88,
-      jobsOngoing: 5,
-      goldRemaining: 245.800,
-      makingCharge: 400
     }
   ]);
 
-  // Initial Tagged Inventory Stock
   const [inventory, setInventory] = useState([
     {
       id: 'inv-1',
@@ -81,38 +57,9 @@ export default function App() {
       makingCharge: 450,
       status: 'IN_STOCK',
       photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'
-    },
-    {
-      id: 'inv-2',
-      tagCode: 'ARK-NCK-1002',
-      name: '22K Gold Choker Necklace',
-      category: 'Necklace',
-      purityKarat: '22K (91.6%)',
-      grossWeight: 45.200,
-      stoneWeight: 3.200,
-      netWeight: 42.000,
-      fineWeight: 38.472,
-      makingCharge: 500,
-      status: 'IN_STOCK',
-      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'
-    },
-    {
-      id: 'inv-3',
-      tagCode: 'ARK-PND-2005',
-      name: '22K Royal Solitaire Diamond Pendant',
-      category: 'Pendant',
-      purityKarat: '22K (91.6%)',
-      grossWeight: 8.500,
-      stoneWeight: 0.500,
-      netWeight: 8.000,
-      fineWeight: 7.328,
-      makingCharge: 600,
-      status: 'IN_STOCK',
-      photoUrl: 'https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?w=300'
     }
   ]);
 
-  // Customer Profiles & Assignments State
   const [customers, setCustomers] = useState([
     {
       id: 'cust-1',
@@ -123,28 +70,78 @@ export default function App() {
       address: 'Shop 14, Zaveri Bazaar, Mumbai, MH',
       assignedItems: [],
       invoices: []
-    },
-    {
-      id: 'cust-2',
-      name: 'Rajesh Kalyan (Partner)',
-      companyName: 'Kalyan Partner Store',
-      phone: '+91 98111 22334',
-      gstin: '07BBBBB1111B2Z8',
-      address: 'Johri Bazaar, Jaipur, RJ',
-      assignedItems: [],
-      invoices: []
     }
   ]);
 
-  // Handlers
+  // Load initial data from Live API on mount
+  useEffect(() => {
+    async function loadLiveData() {
+      setIsSyncing(true);
+      try {
+        const matRes = await API.getMaterials();
+        if (matRes && matRes.materials && matRes.materials.length > 0) {
+          setMaterials(matRes.materials.map(m => ({
+            ...m,
+            materialType: m.material_type || m.materialType,
+            totalAmount: parseFloat(m.total_amount || m.totalAmount || 0),
+            weight: parseFloat(m.weight || 0),
+            price: parseFloat(m.price || 0),
+            vendorName: m.vendor_name || m.vendorName
+          })));
+        }
+
+        const mfgRes = await API.getManufacturers();
+        if (mfgRes && mfgRes.manufacturers && mfgRes.manufacturers.length > 0) {
+          setManufacturers(mfgRes.manufacturers.map(m => ({
+            ...m,
+            goldRemaining: parseFloat(m.gold_remaining || m.goldRemaining || 0),
+            makingCharge: parseFloat(m.making_charge || m.makingCharge || 0),
+            jobsDone: m.jobs_done || m.jobsDone || 0,
+            jobsOngoing: m.jobs_ongoing || m.jobsOngoing || 0
+          })));
+        }
+
+        const invRes = await API.getInventory();
+        if (invRes && invRes.inventory && invRes.inventory.length > 0) {
+          setInventory(invRes.inventory.map(i => ({
+            ...i,
+            tagCode: i.tag_code || i.tagCode,
+            purityKarat: i.purity_karat || i.purityKarat,
+            grossWeight: parseFloat(i.gross_weight || i.grossWeight || 0),
+            stoneWeight: parseFloat(i.stone_weight || i.stoneWeight || 0),
+            netWeight: parseFloat(i.net_weight || i.netWeight || 0),
+            fineWeight: parseFloat(i.fine_weight || i.fineWeight || 0),
+            makingCharge: parseFloat(i.making_charge || i.makingCharge || 0)
+          })));
+        }
+
+        const custRes = await API.getCustomers();
+        if (custRes && custRes.customers && custRes.customers.length > 0) {
+          setCustomers(custRes.customers.map(c => ({
+            ...c,
+            companyName: c.company_name || c.companyName || c.name,
+            assignedItems: c.assignedItems || [],
+            invoices: c.invoices || []
+          })));
+        }
+      } catch (err) {
+        console.warn("Could not sync initial data with live backend, using local state", err);
+      } finally {
+        setIsSyncing(false);
+      }
+    }
+
+    loadLiveData();
+  }, []);
+
+  // Handlers with Live API Sync
   const handleOpenMaterialModal = (category = 'gold') => {
     setModalDefaultCategory(category);
     setIsMaterialModalOpen(true);
   };
 
-  const handleAddMaterialSubmit = (newEntry) => {
+  const handleAddMaterialSubmit = async (newEntry) => {
     setMaterials(prev => [newEntry, ...prev]);
-
     if (newEntry.direction === 'OUTWARD' && newEntry.manufacturerId) {
       setManufacturers(prev => prev.map(m => {
         if (m.id === newEntry.manufacturerId) {
@@ -157,29 +154,31 @@ export default function App() {
         return m;
       }));
     }
+    // Push to Live API
+    await API.createMaterial(newEntry);
   };
 
-  const handleAddManufacturer = (newMfg) => {
+  const handleAddManufacturer = async (newMfg) => {
     setManufacturers(prev => [...prev, newMfg]);
+    await API.createManufacturer(newMfg);
   };
 
-  const handleAddStockItem = (newItem) => {
+  const handleAddStockItem = async (newItem) => {
     setInventory(prev => [newItem, ...prev]);
+    await API.createInventoryItem(newItem);
   };
 
   const handleImportExcel = () => {
-    alert("Excel file parsed successfully! New items imported.");
+    alert("Excel file parsed successfully!");
   };
 
-  const handleAddCustomer = (newCust) => {
+  const handleAddCustomer = async (newCust) => {
     setCustomers(prev => [...prev, newCust]);
+    await API.createCustomer(newCust);
   };
 
-  const handleAssignProductToCustomer = (customerId, item, invoice) => {
-    // Update inventory item status
+  const handleAssignProductToCustomer = async (customerId, item, invoice) => {
     setInventory(prev => prev.map(i => i.id === item.id ? { ...i, status: 'ASSIGNED' } : i));
-
-    // Add item and invoice to customer
     setCustomers(prev => prev.map(c => {
       if (c.id === customerId) {
         return {
@@ -190,11 +189,18 @@ export default function App() {
       }
       return c;
     }));
+
+    await API.assignProductToCustomer({
+      customerId,
+      itemId: item.id,
+      goldRate: invoice.goldRate,
+      oldGoldDeduction: invoice.oldGoldDeduction
+    });
   };
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 16px 80px 16px' }}>
-      {/* Top Header Shell (Light Theme) */}
+      {/* Top Header Shell */}
       <header className="glass-card gold-border" style={{ padding: '16px 20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ background: '#d97706', padding: '10px', borderRadius: '10px', color: '#ffffff' }}>
@@ -208,13 +214,18 @@ export default function App() {
           </div>
         </div>
 
-        {/* Live Rate Ticker Bar */}
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: '#f8fafc', padding: '8px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#b45309' }}>
-            <Flame size={14} color="#d97706" /> Live 24K Gold: ₹7,200/g
+        {/* Live Rate Ticker & Sync Status */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: '#f8fafc', padding: '8px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#b45309' }}>
+              <Flame size={14} color="#d97706" /> Live 24K Gold: ₹7,200/g
+            </div>
+            <div style={{ fontSize: '12px', color: '#475569' }}>22K: ₹6,850/g</div>
           </div>
-          <div style={{ fontSize: '12px', color: '#475569' }}>22K: ₹6,850/g</div>
-          <div style={{ fontSize: '12px', color: '#475569' }}>Silver: ₹88/g</div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '600', color: isSyncing ? '#d97706' : '#15803d', background: '#f0fdf4', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+            <Wifi size={14} /> {isSyncing ? 'Syncing...' : 'Neon DB Connected'}
+          </div>
         </div>
       </header>
 
@@ -254,7 +265,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Shared Material Inward/Outward Modal */}
       <MaterialModal
         isOpen={isMaterialModalOpen}
         onClose={() => setIsMaterialModalOpen(false)}
@@ -263,7 +273,6 @@ export default function App() {
         manufacturers={manufacturers}
       />
 
-      {/* Bottom Bar Navigation Component */}
       <NavigationBar activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );

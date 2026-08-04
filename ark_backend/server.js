@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const materialsRoutes = require('./routes/materials');
 const manufacturersRoutes = require('./routes/manufacturers');
 const inventoryRoutes = require('./routes/inventory');
+const customersRoutes = require('./routes/customers');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,8 +20,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/materials', materialsRoutes);
 app.use('/api/manufacturers', manufacturersRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/customers', customersRoutes);
 
-// Root Welcome Route
+// Root Welcome Landing Page
 app.get('/', (req, res) => {
   res.send(`
     <div style="font-family: system-ui, sans-serif; padding: 40px; text-align: center; background: #f8fafc; min-height: 100vh;">

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/material_entry.dart';
+import '../services/api_service.dart';
 
 class AppState extends ChangeNotifier {
   double liveGoldRate24K = 7200.0;
@@ -7,6 +8,33 @@ class AppState extends ChangeNotifier {
   double liveSilverRate = 88.0;
 
   int activeBottomTab = 0;
+  bool isSyncing = false;
+
+  AppState() {
+    initLiveData();
+  }
+
+  Future<void> initLiveData() async {
+    isSyncing = true;
+    notifyListeners();
+
+    try {
+      final remoteMaterials = await ApiService.fetchMaterials();
+      if (remoteMaterials.isNotEmpty) {
+        _materials = remoteMaterials;
+      }
+
+      final remoteMfg = await ApiService.fetchManufacturers();
+      if (remoteMfg.isNotEmpty) {
+        _manufacturers = remoteMfg;
+      }
+    } catch (e) {
+      print('Sync failed: $e');
+    } finally {
+      isSyncing = false;
+      notifyListeners();
+    }
+  }
 
   // Material Transactions (Gold 995 24K, Diamond, Gemstone)
   List<MaterialEntry> _materials = [
@@ -22,32 +50,6 @@ class AppState extends ChangeNotifier {
       totalAmount: 1800000,
       photoUrl: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300',
     ),
-    MaterialEntry(
-      id: 'tx-102',
-      timestamp: '04/08/2026, 12:15 PM',
-      direction: 'OUTWARD',
-      materialType: 'gold',
-      weight: 45.000,
-      purity: '995 (24K)',
-      vendorName: 'Ramesh Artisan Workshop',
-      manufacturerId: 'mfg-1',
-      price: 7200,
-      totalAmount: 324000,
-      productType: 'Necklace',
-      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
-    ),
-    MaterialEntry(
-      id: 'tx-103',
-      timestamp: '04/08/2026, 01:00 PM',
-      direction: 'INWARD',
-      materialType: 'diamond',
-      weight: 12.50,
-      size: '2.5 mm VVS1',
-      vendorName: 'Surat Diamond Syndicate',
-      price: 45000,
-      totalAmount: 562500,
-      photoUrl: 'https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?w=300',
-    ),
   ];
 
   // Manufacturer Profiles
@@ -61,16 +63,6 @@ class AppState extends ChangeNotifier {
       jobsOngoing: 3,
       goldRemaining: 110.500,
       makingCharge: 450,
-    ),
-    Manufacturer(
-      id: 'mfg-2',
-      name: 'Swarn Artistry',
-      office: 'Johri Bazaar, Jaipur',
-      photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300',
-      jobsDone: 88,
-      jobsOngoing: 5,
-      goldRemaining: 245.800,
-      makingCharge: 400,
     ),
   ];
 
@@ -90,20 +82,6 @@ class AppState extends ChangeNotifier {
       status: 'IN_STOCK',
       photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
     ),
-    InventoryItem(
-      id: 'inv-2',
-      tagCode: 'ARK-NCK-1002',
-      name: '22K Gold Choker Necklace',
-      category: 'Necklace',
-      purityKarat: '22K (91.6%)',
-      grossWeight: 45.200,
-      stoneWeight: 3.200,
-      netWeight: 42.000,
-      fineWeight: 38.472,
-      makingCharge: 500,
-      status: 'IN_STOCK',
-      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
-    ),
   ];
 
   List<MaterialEntry> get materials => _materials;
@@ -117,8 +95,6 @@ class AppState extends ChangeNotifier {
 
   void addMaterialEntry(MaterialEntry entry) {
     _materials.insert(0, entry);
-    
-    // Update manufacturer balance if outward gold
     if (entry.direction == 'OUTWARD' && entry.manufacturerId != null) {
       final index = _manufacturers.indexWhere((m) => m.id == entry.manufacturerId);
       if (index != -1) {
@@ -136,6 +112,7 @@ class AppState extends ChangeNotifier {
       }
     }
     notifyListeners();
+    ApiService.createMaterial(entry);
   }
 
   void addManufacturer(Manufacturer mfg) {
