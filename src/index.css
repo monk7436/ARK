@@ -1,25 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
 
 :root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: #111827;
-  --bg-card: rgba(21, 29, 43, 0.85);
-  --bg-card-hover: #1e293b;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-highlight: rgba(245, 158, 11, 0.3);
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+  --border-highlight: #f59e0b;
   
-  --gold-primary: #f59e0b;
-  --gold-glow: rgba(245, 158, 11, 0.25);
+  --gold-primary: #d97706;
+  --gold-glow: rgba(217, 119, 6, 0.12);
   --gold-dark: #b45309;
   
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  --text-main: #0f172a;
+  --text-muted: #475569;
   --text-dim: #64748b;
   
-  --inward-color: #10b981;
-  --inward-bg: rgba(16, 185, 129, 0.12);
-  --outward-color: #f43f5e;
-  --outward-bg: rgba(244, 63, 94, 0.12);
+  --inward-color: #15803d;
+  --inward-bg: #f0fdf4;
+  --outward-color: #be123c;
+  --outward-bg: #fff1f2;
 
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
@@ -44,34 +44,34 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
+  color: var(--text-main);
 }
 
-/* Glassmorphism Cards */
+/* Simple Clean Card Design */
 .glass-card {
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: #ffffff;
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease-in-out;
 }
 
 .glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
 .gold-border {
-  border-color: var(--border-highlight) !important;
-  box-shadow: 0 0 20px var(--gold-glow);
+  border-color: #f59e0b !important;
+  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.08);
 }
 
-/* Custom Input Styles */
+/* Form Input Styles */
 .form-input {
   width: 100%;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
   padding: 10px 14px;
   color: var(--text-main);
   font-size: 14px;
@@ -96,35 +96,30 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Buttons */
 .btn-gold {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: #000;
-  font-weight: 700;
+  background: #d97706;
+  color: #ffffff;
+  font-weight: 600;
   padding: 10px 18px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .btn-gold:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px var(--gold-glow);
-}
-
-.btn-gold:active {
-  transform: translateY(0);
+  background: #b45309;
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: #ffffff;
   color: var(--text-main);
-  border: 1px solid var(--border-color);
+  border: 1px solid #cbd5e1;
   font-weight: 600;
   padding: 10px 18px;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -133,18 +128,17 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f1f5f9;
 }
 
-/* Bottom Bar Navigation */
+/* Bottom Navigation Bar */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   height: var(--bottom-bar-height);
-  background: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(16px);
+  background: #ffffff;
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: space-around;
@@ -152,7 +146,7 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 1000;
   max-width: 600px;
   margin: 0 auto;
-  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .nav-item {
@@ -167,20 +161,15 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   background: none;
   border: none;
-  transition: color 0.2s ease, transform 0.15s ease;
+  transition: color 0.2s ease;
   padding: 8px;
 }
 
 .nav-item.active {
   color: var(--gold-primary);
-  transform: translateY(-2px);
 }
 
-.nav-item.active svg {
-  filter: drop-shadow(0 0 8px var(--gold-primary));
-}
-
-/* Badge pill */
+/* Badges */
 .badge {
   padding: 3px 8px;
   border-radius: 9999px;
@@ -191,49 +180,30 @@ h1, h2, h3, h4, h5, h6 {
 .badge-inward {
   background: var(--inward-bg);
   color: var(--inward-color);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid #bbf7d0;
 }
 
 .badge-outward {
   background: var(--outward-bg);
   color: var(--outward-color);
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  border: 1px solid #fecdd3;
 }
 
 .badge-gold {
-  background: var(--gold-glow);
-  color: var(--gold-primary);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 /* Modal Backdrop */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1100;
   padding: 16px;
-}
-
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--gold-primary);
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Download, Upload, Search, Plus, Filter, FileSpreadsheet, Check, X } from 'lucide-react';
+import { Package, Download, Upload, Search, Plus, FileSpreadsheet, X, Check } from 'lucide-react';
 
 export default function InventoryTab({ inventory, onAddStockItem, onImportExcel }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -8,13 +8,17 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // New stock form state
-  const [tagCode, setTagCode] = useState('ARK-RNG-' + Math.floor(1000 + Math.random() * 9000));
+  const [tagCode, setTagCode] = useState('ARK-TAG-' + Math.floor(1000 + Math.random() * 9000));
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Ring');
+  const [customCategory, setCustomCategory] = useState('');
   const [purityKarat, setPurityKarat] = useState('22K (91.6%)');
   const [grossWeight, setGrossWeight] = useState('');
   const [stoneWeight, setStoneWeight] = useState('0');
   const [makingCharge, setMakingCharge] = useState('450');
+
+  // DYNAMIC CATEGORIES FILTER: Only show categories that currently exist in inventory items!
+  const availableCategories = ['ALL', ...Array.from(new Set(inventory.map(item => item.category)))];
 
   const filteredInventory = inventory.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -25,6 +29,7 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
 
   const handleCreateStockItem = (e) => {
     e.preventDefault();
+    const finalCategory = category === 'CUSTOM' ? (customCategory || 'Custom') : category;
     const gross = parseFloat(grossWeight || 0);
     const stone = parseFloat(stoneWeight || 0);
     const net = gross - stone;
@@ -34,7 +39,7 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
       id: 'inv-' + Date.now(),
       tagCode,
       name,
-      category,
+      category: finalCategory,
       purityKarat,
       grossWeight: gross,
       stoneWeight: stone,
@@ -47,10 +52,11 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
 
     setName('');
     setGrossWeight('');
+    setCustomCategory('');
+    setTagCode('ARK-TAG-' + Math.floor(1000 + Math.random() * 9000));
     setIsAddModalOpen(false);
   };
 
-  // Export to Excel / CSV trigger
   const handleExportCSV = () => {
     const headers = ['Tag Code', 'Item Name', 'Category', 'Purity', 'Gross Wt (g)', 'Net Wt (g)', 'Fine Wt (g)', 'Status', 'Image URL'];
     const rows = inventory.map(item => [
@@ -82,11 +88,11 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
       {/* Action Header */}
       <div className="glass-card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#f8fafc' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
             Tagged Inventory Catalog
           </h2>
-          <p style={{ fontSize: '12px', color: '#94a3b8' }}>
-            {inventory.length} total items | Vault Net Weight: {inventory.reduce((a,b)=>a+b.netWeight,0).toFixed(2)}g
+          <p style={{ fontSize: '12px', color: '#64748b' }}>
+            {inventory.length} total items | Net Weight: {inventory.reduce((a,b)=>a+b.netWeight,0).toFixed(2)}g
           </p>
         </div>
 
@@ -103,13 +109,13 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
         </div>
       </div>
 
-      {/* Search & Category Filter */}
+      {/* DYNAMIC CATEGORY QUICK FILTERS */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
           <Search size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '12px' }} />
           <input
             type="text"
-            placeholder="Search by Tag ID (e.g. ARK-RNG-1001) or item name..."
+            placeholder="Search by Tag ID or item name..."
             className="form-input"
             style={{ paddingLeft: '36px' }}
             value={searchQuery}
@@ -117,20 +123,22 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '6px', background: 'rgba(15,23,42,0.8)', padding: '4px', borderRadius: '10px' }}>
-          {['ALL', 'Ring', 'Necklace', 'Bangle', 'Earrings'].map(cat => (
+        {/* Dynamic Category Buttons */}
+        <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+          {availableCategories.map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               style={{
-                padding: '6px 12px',
+                padding: '6px 14px',
                 borderRadius: '6px',
                 border: 'none',
-                background: selectedCategory === cat ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                color: selectedCategory === cat ? '#f59e0b' : '#64748b',
+                background: selectedCategory === cat ? '#d97706' : 'transparent',
+                color: selectedCategory === cat ? '#ffffff' : '#475569',
                 fontWeight: '600',
                 fontSize: '12px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
               }}
             >
               {cat}
@@ -144,13 +152,13 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
         {filteredInventory.map((item) => (
           <div key={item.id} className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* Image + Tag Badge */}
-            <div style={{ position: 'relative', width: '100%', height: '160px', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ position: 'relative', width: '100%', height: '160px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
               <img
                 src={item.photoUrl}
                 alt={item.name}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
-              <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+              <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#ffffff', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', color: '#b45309', border: '1px solid #fde68a', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                 {item.tagCode}
               </div>
               <div style={{ position: 'absolute', bottom: '8px', right: '8px' }}>
@@ -160,78 +168,37 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
 
             {/* Title & Category */}
             <div>
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#f8fafc' }}>{item.name}</h3>
-              <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{item.category} • {item.purityKarat}</p>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>{item.name}</h3>
+              <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{item.category} • {item.purityKarat}</p>
             </div>
 
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ height: '1px', background: '#e2e8f0' }} />
 
             {/* Weight Breakdown Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', textAlign: 'center', fontSize: '12px' }}>
-              <div style={{ background: 'rgba(15,23,42,0.5)', padding: '6px', borderRadius: '6px' }}>
+              <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                 <div style={{ color: '#64748b', fontSize: '10px' }}>Gross Wt</div>
-                <div style={{ fontWeight: '700', color: '#f8fafc' }}>{item.grossWeight}g</div>
+                <div style={{ fontWeight: '700', color: '#0f172a' }}>{item.grossWeight}g</div>
               </div>
-              <div style={{ background: 'rgba(15,23,42,0.5)', padding: '6px', borderRadius: '6px' }}>
+              <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                 <div style={{ color: '#64748b', fontSize: '10px' }}>Net Wt</div>
-                <div style={{ fontWeight: '700', color: '#f59e0b' }}>{item.netWeight}g</div>
+                <div style={{ fontWeight: '700', color: '#b45309' }}>{item.netWeight}g</div>
               </div>
-              <div style={{ background: 'rgba(15,23,42,0.5)', padding: '6px', borderRadius: '6px' }}>
+              <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                 <div style={{ color: '#64748b', fontSize: '10px' }}>Fine Wt</div>
-                <div style={{ fontWeight: '700', color: '#10b981' }}>{item.fineWeight}g</div>
+                <div style={{ fontWeight: '700', color: '#15803d' }}>{item.fineWeight}g</div>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Excel Import Modal */}
-      {isImportModalOpen && (
-        <div className="modal-backdrop">
-          <div className="glass-card gold-border" style={{ width: '100%', maxWidth: '500px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#f8fafc' }}>Excel Inventory Import</h2>
-              <button onClick={() => setIsImportModalOpen(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '12px', borderRadius: '10px', fontSize: '12px', color: '#10b981', marginBottom: '16px' }}>
-              ✓ Auto-calculates Fine Weight from Net Weight & Purity.<br />
-              ✓ Missing Tag IDs are auto-generated.<br />
-              ✓ Supports photo URLs & ZIP file upload.
-            </div>
-
-            <label style={{ border: '2px dashed rgba(245,158,11,0.4)', padding: '24px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(15,23,42,0.6)' }}>
-              <FileSpreadsheet size={32} color="#f59e0b" />
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#f8fafc' }}>Choose Excel (.xlsx / .csv) File</span>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>or drag & drop your inventory sheet here</span>
-              <input
-                type="file"
-                accept=".csv, .xlsx"
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    onImportExcel();
-                    setIsImportModalOpen(false);
-                  }
-                }}
-                style={{ display: 'none' }}
-              />
-            </label>
-
-            <button onClick={() => setIsImportModalOpen(false)} className="btn-secondary" style={{ width: '100%', marginTop: '16px', justifyContent: 'center' }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Add New Tag Item Modal */}
       {isAddModalOpen && (
         <div className="modal-backdrop">
           <div className="glass-card gold-border" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#f8fafc' }}>Tag New Finished Item</h2>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>Tag New Finished Item</h2>
               <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
@@ -241,22 +208,38 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label className="form-label">Auto Tag Code</label>
-                  <input type="text" readOnly className="form-input" value={tagCode} style={{ color: '#f59e0b', fontWeight: '700' }} />
+                  <input type="text" readOnly className="form-input" value={tagCode} style={{ color: '#b45309', fontWeight: '700' }} />
                 </div>
                 <div>
                   <label className="form-label">Category</label>
                   <select className="form-input" value={category} onChange={(e) => setCategory(e.target.value)}>
                     <option value="Ring">Ring</option>
-                    <option value="Necklace">Necklace / Choker</option>
+                    <option value="Necklace">Necklace</option>
+                    <option value="Pendant">Pendant</option>
                     <option value="Bangle">Bangle</option>
                     <option value="Earrings">Earrings</option>
+                    <option value="CUSTOM">+ Add New Category...</option>
                   </select>
                 </div>
               </div>
 
+              {category === 'CUSTOM' && (
+                <div>
+                  <label className="form-label">New Category Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Mangalsutra / Chain / Nose Pin"
+                    className="form-input"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="form-label">Item Title / Description *</label>
-                <input type="text" required placeholder="e.g. 22K Antique Royal Ring" className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
+                <input type="text" required placeholder="e.g. 22K Royal Solitaire Pendant" className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
