@@ -10,7 +10,8 @@ import {
   Tag, 
   SlidersHorizontal, 
   RotateCcw,
-  Check
+  Check,
+  ImageIcon
 } from 'lucide-react';
 
 export default function MaterialListTab({ 
@@ -22,14 +23,12 @@ export default function MaterialListTab({
 }) {
   const [selectedCategory, setSelectedCategory] = useState('gold'); // 'gold', 'diamond', 'gemstone'
   const [filterDirection, setFilterDirection] = useState('ALL'); // 'ALL', 'INWARD', 'OUTWARD'
-  const [selectedEntry, setSelectedEntry] = useState(null); // Detail modal
+  const [selectedEntry, setSelectedEntry] = useState(null); // Detail modal popup
   
   // Advanced Filter Modal State
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [filterVendor, setFilterVendor] = useState('');
   const [filterPurity, setFilterPurity] = useState('');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
 
   // Filter materials by selected category
   const categoryMaterials = materials.filter(m => {
@@ -51,16 +50,13 @@ export default function MaterialListTab({
 
   // Advanced Filter Matching Logic
   const filteredTransactions = categoryMaterials.filter(m => {
-    // 1. Direction Filter
     if (filterDirection === 'INWARD' && m.direction !== 'INWARD') return false;
     if (filterDirection === 'OUTWARD' && m.direction !== 'OUTWARD') return false;
 
-    // 2. Vendor / Karigar Filter
     if (filterVendor && !((m.vendorName || '').toLowerCase().includes(filterVendor.toLowerCase()))) {
       return false;
     }
 
-    // 3. Purity Filter
     if (filterPurity && m.purity !== filterPurity) {
       return false;
     }
@@ -68,18 +64,16 @@ export default function MaterialListTab({
     return true;
   });
 
-  const hasActiveAdvancedFilters = filterVendor || filterPurity || filterStartDate || filterEndDate;
+  const hasActiveAdvancedFilters = filterVendor || filterPurity;
 
   const handleResetFilters = () => {
     setFilterVendor('');
     setFilterPurity('');
-    setFilterStartDate('');
-    setFilterEndDate('');
     setFilterDirection('ALL');
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
       
       {/* 1. Header Bar with Back Button */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -249,7 +243,7 @@ export default function MaterialListTab({
         <Plus size={20} /> Add New {selectedCategory.toUpperCase()} Entry
       </button>
 
-      {/* 5. Filtered Material Entry List + Advanced Filter Action */}
+      {/* 5. Filtered Material Entry List with Photo Thumbnail Preview */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
@@ -280,7 +274,6 @@ export default function MaterialListTab({
             {hasActiveAdvancedFilters && (
               <button
                 onClick={handleResetFilters}
-                title="Reset Filters"
                 style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
               >
                 Reset
@@ -297,6 +290,8 @@ export default function MaterialListTab({
           ) : (
             filteredTransactions.map(entry => {
               const isInward = entry.direction === 'INWARD';
+              const photoSrc = entry.photoUrl || (entry.photos && entry.photos[0]);
+
               return (
                 <div
                   key={entry.id}
@@ -311,22 +306,58 @@ export default function MaterialListTab({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '12px',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* Icon: IN = Green, OUT = RED */}
-                    <div style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '10px',
-                      background: isInward ? '#dcfce7' : '#fef2f2',
-                      color: isInward ? '#15803d' : '#dc2626',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      {isInward ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
+                    {/* Entry Thumbnail Image Preview or Direction Icon */}
+                    <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+                      {photoSrc ? (
+                        <img 
+                          src={photoSrc} 
+                          alt="Entry Thumbnail" 
+                          style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '10px',
+                            objectFit: 'cover',
+                            border: '1px solid #cbd5e1'
+                          }} 
+                        />
+                      ) : (
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '10px',
+                          background: isInward ? '#dcfce7' : '#fef2f2',
+                          color: isInward ? '#15803d' : '#dc2626',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {isInward ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
+                        </div>
+                      )}
+
+                      {/* Direction Overlay Badge */}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '-2px',
+                        right: '-2px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: isInward ? '#15803d' : '#dc2626',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '10px',
+                        border: '2px solid #ffffff'
+                      }}>
+                        {isInward ? '↓' : '↑'}
+                      </div>
                     </div>
 
                     <div>
@@ -355,7 +386,7 @@ export default function MaterialListTab({
                     <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
                       ₹{entry.totalAmount ? entry.totalAmount.toLocaleString('en-IN') : '0'}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>Tap details ➔</div>
+                    <div style={{ fontSize: '10px', color: '#d97706', fontWeight: '700' }}>Tap details ➔</div>
                   </div>
                 </div>
               );
@@ -371,7 +402,7 @@ export default function MaterialListTab({
           top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.6)',
           backdropFilter: 'blur(4px)',
-          zIndex: 1200,
+          zIndex: 2000,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -447,55 +478,80 @@ export default function MaterialListTab({
         </div>
       )}
 
-      {/* 7. Entry Detail Pop-up Modal */}
+      {/* 7. Bulletproof Entry Detail Pop-up Modal */}
       {selectedEntry && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 1200,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 3000,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '20px'
         }}>
-          <div className="glass-card" style={{
+          <div style={{
             background: '#ffffff',
-            borderRadius: '20px',
+            borderRadius: '24px',
             width: '100%',
             maxWidth: '440px',
             padding: '24px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            border: '1px solid #e2e8f0',
+            position: 'relative',
+            maxHeight: '90vh',
+            overflowY: 'auto'
           }}>
+            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{
                   fontSize: '11px',
                   fontWeight: '800',
-                  padding: '3px 8px',
+                  padding: '4px 10px',
                   borderRadius: '6px',
                   background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
                   color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626'
                 }}>
                   {selectedEntry.direction} ENTRY
                 </span>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                  Transaction Details
+                <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
+                  Entry Details
                 </h3>
               </div>
-              <button onClick={() => setSelectedEntry(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                <X size={22} />
+              <button 
+                onClick={() => setSelectedEntry(null)} 
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#475569'
+                }}
+              >
+                <X size={18} />
               </button>
             </div>
 
-            {selectedEntry.photoUrl && (
-              <div style={{ marginBottom: '16px', borderRadius: '12px', overflow: 'hidden', height: '140px' }}>
-                <img src={selectedEntry.photoUrl} alt="Entry Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {/* Photo Attachment Preview Banner */}
+            {(selectedEntry.photoUrl || (selectedEntry.photos && selectedEntry.photos.length > 0)) && (
+              <div style={{ marginBottom: '16px', borderRadius: '16px', overflow: 'hidden', height: '160px', border: '1px solid #e2e8f0' }}>
+                <img 
+                  src={selectedEntry.photoUrl || selectedEntry.photos[0]} 
+                  alt="Attached Entry Photo" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+            {/* Details Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> Timestamp:</span>
                 <strong style={{ color: '#0f172a' }}>{selectedEntry.timestamp}</strong>
@@ -508,7 +564,7 @@ export default function MaterialListTab({
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: '#64748b' }}>Weight:</span>
-                <strong style={{ color: '#0f172a' }}>{selectedEntry.weight} {unitLabel}</strong>
+                <strong style={{ color: '#0f172a', fontSize: '15px' }}>{selectedEntry.weight} {unitLabel}</strong>
               </div>
 
               {selectedEntry.purity && (
@@ -528,9 +584,9 @@ export default function MaterialListTab({
                 <strong style={{ color: '#0f172a' }}>₹{selectedEntry.price}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
                 <span style={{ fontWeight: '800', color: '#0f172a' }}>Total Amount:</span>
-                <strong style={{ fontWeight: '800', color: '#15803d' }}>
+                <strong style={{ fontWeight: '800', color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626' }}>
                   ₹{selectedEntry.totalAmount ? selectedEntry.totalAmount.toLocaleString('en-IN') : '0'}
                 </strong>
               </div>
@@ -541,12 +597,13 @@ export default function MaterialListTab({
               style={{
                 width: '100%',
                 marginTop: '16px',
-                padding: '12px',
-                borderRadius: '10px',
+                padding: '14px',
+                borderRadius: '12px',
                 background: '#0f172a',
                 color: '#ffffff',
                 border: 'none',
-                fontWeight: '700',
+                fontWeight: '800',
+                fontSize: '14px',
                 cursor: 'pointer'
               }}
             >

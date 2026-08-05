@@ -279,21 +279,49 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                     itemBuilder: (context, index) {
                       final entry = filteredTransactions[index];
                       final isInward = entry.direction == 'INWARD';
+                      final photoUrl = entry.photoUrl;
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: AppTheme.borderSubtle)),
                         child: ListTile(
                           onTap: () => _showEntryDetailDialog(context, entry, unitLabel),
-                          leading: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              isInward ? Icons.arrow_downward : Icons.arrow_upward,
-                              color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                            ),
+                          leading: Stack(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: photoUrl != null && photoUrl.startsWith('http')
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.network(photoUrl, fit: BoxFit.cover),
+                                      )
+                                    : Icon(
+                                        isInward ? Icons.arrow_downward : Icons.arrow_upward,
+                                        color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                                      ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isInward ? Icons.arrow_downward : Icons.arrow_upward,
+                                    color: Colors.white,
+                                    size: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           title: Text('${entry.weight} $unitLabel (${entry.purity ?? "24K - 995"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           subtitle: Text('${entry.vendorName} • ${entry.timestamp}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
@@ -302,7 +330,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text('₹${entry.totalAmount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain)),
-                              const Text('Tap details ➔', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                              const Text('Tap details ➔', style: TextStyle(fontSize: 10, color: AppTheme.goldDark, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -426,70 +454,127 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
     );
   }
 
+  // Bulletproof Entry Detail Pop-up Dialog
   void _showEntryDetailDialog(BuildContext context, MaterialEntry entry, String unitLabel) {
     final isInward = entry.direction == 'INWARD';
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(6),
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        elevation: 10,
+        backgroundColor: Colors.white,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${entry.direction} ENTRY',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppTheme.textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
               ),
-              child: Text(
-                '${entry.direction} ENTRY',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+              const SizedBox(height: 12),
+
+              // Image Preview
+              if (entry.photoUrl != null && entry.photoUrl!.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.network(
+                    entry.photoUrl!,
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 100,
+                      color: AppTheme.bgPrimary,
+                      child: const Center(child: Icon(Icons.broken_image, color: AppTheme.textMuted)),
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 14),
+
+              // Transaction Details List
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.bgPrimary,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.borderSubtle),
+                ),
+                child: Column(
+                  children: [
+                    _buildDetailRow('Timestamp:', entry.timestamp),
+                    _buildDetailRow('Weight:', '${entry.weight} $unitLabel'),
+                    if (entry.purity != null) _buildDetailRow('Purity:', entry.purity!),
+                    _buildDetailRow(isInward ? 'Vendor:' : 'Karigar:', entry.vendorName),
+                    _buildDetailRow('Rate:', '₹${entry.price}'),
+                    const Divider(height: 16),
+                    _buildDetailRow('Total Amount:', '₹${entry.totalAmount.toStringAsFixed(0)}', isBold: true, isInward: isInward),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Text('Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (entry.photoUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(entry.photoUrl!, height: 120, width: double.infinity, fit: BoxFit.cover),
+
+              const SizedBox(height: 16),
+
+              // Close Button
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
               ),
-            const SizedBox(height: 12),
-            _buildDetailRow('Timestamp:', entry.timestamp),
-            _buildDetailRow('Weight:', '${entry.weight} $unitLabel'),
-            if (entry.purity != null) _buildDetailRow('Purity:', entry.purity!),
-            _buildDetailRow(isInward ? 'Vendor:' : 'Karigar:', entry.vendorName),
-            _buildDetailRow('Rate:', '₹${entry.price}'),
-            const Divider(),
-            _buildDetailRow('Total Amount:', '₹${entry.totalAmount.toStringAsFixed(0)}', isBold: true),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CLOSE', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
+  Widget _buildDetailRow(String label, String value, {bool isBold = false, bool isInward = true}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-          Text(value, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: isBold ? const Color(0xFF15803D) : AppTheme.textMain)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isBold ? 15 : 13,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              color: isBold ? (isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626)) : AppTheme.textMain,
+            ),
+          ),
         ],
       ),
     );
