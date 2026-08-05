@@ -99,7 +99,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           children: [
                             Container(
-                              width: 6, height: 6,
+                              width: 6,
+                              height: 6,
                               decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
                             ),
                             const SizedBox(width: 6),
@@ -315,7 +316,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
 
-          ],
+            ],
+          ),
         ),
       ),
     );
