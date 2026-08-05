@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/material_entry.dart';
 import '../providers/app_state.dart';
+import '../models/material_entry.dart';
 import '../theme/app_theme.dart';
 import '../widgets/material_modal.dart';
 
 class MaterialListScreen extends StatefulWidget {
   final String initialDirection;
+
   const MaterialListScreen({super.key, this.initialDirection = 'INWARD'});
 
   @override
@@ -14,59 +15,58 @@ class MaterialListScreen extends StatefulWidget {
 }
 
 class _MaterialListScreenState extends State<MaterialListScreen> {
-  String _selectedCategory = 'gold'; // 'gold', 'diamond', 'gemstone'
-  String _filterDirection = 'ALL'; // 'ALL', 'INWARD', 'OUTWARD'
-  
-  // Advanced Filter state
-  String _filterVendor = '';
-  String _filterPurity = '';
+  late String _selectedCategory; // 'gold', 'diamond', 'gemstone'
+  late String _filterDirection;   // 'ALL', 'INWARD', 'OUTWARD'
+
+  String? _filterVendor;
+  String? _filterPurity;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = 'gold';
+    _filterDirection = 'ALL';
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
 
-    // Filter materials by selected category
+    // Filter materials by active category
     final categoryMaterials = appState.materials.where((m) {
-      return m.materialType.toLowerCase() == _selectedCategory;
+      final matType = m.materialType.toLowerCase();
+      return matType == _selectedCategory;
     }).toList();
 
     // Summary calculations
-    final double totalIn = categoryMaterials
+    final totalIn = categoryMaterials
         .where((m) => m.direction == 'INWARD')
         .fold(0.0, (sum, m) => sum + m.weight);
 
-    final double totalOut = categoryMaterials
+    final totalOut = categoryMaterials
         .where((m) => m.direction == 'OUTWARD')
         .fold(0.0, (sum, m) => sum + m.weight);
 
-    final double balance = totalIn - totalOut;
+    final balance = totalIn - totalOut;
     final unitLabel = _selectedCategory == 'gold' ? 'g' : 'CTS';
 
-    // Advanced Filtering Logic
+    // Advanced filtering
     final filteredTransactions = categoryMaterials.where((m) {
       if (_filterDirection == 'INWARD' && m.direction != 'INWARD') return false;
       if (_filterDirection == 'OUTWARD' && m.direction != 'OUTWARD') return false;
-
-      if (_filterVendor.isNotEmpty &&
-          !m.vendorName.toLowerCase().contains(_filterVendor.toLowerCase())) {
+      if (_filterVendor != null && !m.vendorName.toLowerCase().contains(_filterVendor!.toLowerCase())) {
         return false;
       }
-
-      if (_filterPurity.isNotEmpty && m.purity != _filterPurity) {
-        return false;
-      }
-
+      if (_filterPurity != null && m.purity != _filterPurity) return false;
       return true;
     }).toList();
-
-    final hasActiveAdvancedFilters = _filterVendor.isNotEmpty || _filterPurity.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
       appBar: AppBar(
-        title: const Text('Material Vault List', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textMain)),
+        title: Text('${_selectedCategory.toUpperCase()} Vault List', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textMain)),
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0.5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.textMain),
           onPressed: () => Navigator.pop(context),
@@ -78,14 +78,10 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             
-            // 1. Three Material Category Tabs (Gold, Diamond, Gemstone)
+            // 1. Material Category Segmented Tabs (Gold, Diamond, Gemstone)
             Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.borderSubtle),
-              ),
               padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.borderSubtle)),
               child: Row(
                 children: ['gold', 'diamond', 'gemstone'].map((cat) {
                   final isSelected = _selectedCategory == cat;
@@ -100,17 +96,16 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.goldPrimary : Colors.transparent,
+                          color: isSelected ? AppTheme.goldDark : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Center(
-                          child: Text(
-                            cat.toUpperCase(),
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : AppTheme.textMuted,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          cat.toUpperCase(),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: isSelected ? Colors.white : AppTheme.textMuted,
                           ),
                         ),
                       ),
@@ -122,12 +117,12 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
 
             const SizedBox(height: 16),
 
-            // 2. Material Vault Summary Card (In = Green, OUT = RED, Remaining = BLUE)
+            // 2. Vault Summary Card (In = Green, Out = RED, Balance = BLUE)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppTheme.borderSubtle),
                 boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
               ),
@@ -137,17 +132,11 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${_selectedCategory.toUpperCase()} VAULT SUMMARY',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.goldDark),
-                      ),
+                      Text('${_selectedCategory.toUpperCase()} VAULT SUMMARY', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text('LIVE BALANCE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(10)),
+                        child: const Text('LIVE BALANCE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
                       ),
                     ],
                   ),
@@ -158,43 +147,75 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _filterDirection = 'INWARD'),
-                          child: _buildSummaryBox(
-                            label: 'TOTAL IN',
-                            value: '${totalIn.toStringAsFixed(3)} $unitLabel',
-                            bg: const Color(0xFFECFDF5),
-                            textCol: const Color(0xFF047857),
-                            isSelected: _filterDirection == 'INWARD',
-                            borderCol: const Color(0xFF059669),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _filterDirection == 'INWARD' ? const Color(0xFF059669) : const Color(0xFFA7F3D0),
+                                width: _filterDirection == 'INWARD' ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                const Text('TOTAL IN', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
+                                const SizedBox(height: 2),
+                                Text('${totalIn.toStringAsFixed(3)} $unitLabel', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF065F46))),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
+
                       // Total OUT (RED)
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _filterDirection = 'OUTWARD'),
-                          child: _buildSummaryBox(
-                            label: 'TOTAL OUT',
-                            value: '${totalOut.toStringAsFixed(3)} $unitLabel',
-                            bg: const Color(0xFFFEF2F2),
-                            textCol: const Color(0xFFDC2626),
-                            isSelected: _filterDirection == 'OUTWARD',
-                            borderCol: const Color(0xFFDC2626),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _filterDirection == 'OUTWARD' ? const Color(0xFFDC2626) : const Color(0xFFFCA5A5),
+                                width: _filterDirection == 'OUTWARD' ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                const Text('TOTAL OUT', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                                const SizedBox(height: 2),
+                                Text('${totalOut.toStringAsFixed(3)} $unitLabel', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF991B1B))),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Remaining Balance (BLUE)
+
+                      // Remaining (BLUE)
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _filterDirection = 'ALL'),
-                          child: _buildSummaryBox(
-                            label: 'REMAINING',
-                            value: '${balance.toStringAsFixed(3)} $unitLabel',
-                            bg: const Color(0xFFEFF6FF),
-                            textCol: const Color(0xFF2563EB),
-                            isSelected: _filterDirection == 'ALL',
-                            borderCol: const Color(0xFF2563EB),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _filterDirection == 'ALL' ? const Color(0xFF2563EB) : const Color(0xFFBFDBFE),
+                                width: _filterDirection == 'ALL' ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                const Text('REMAINING', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                                const SizedBox(height: 2),
+                                Text('${balance.toStringAsFixed(3)} $unitLabel', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -206,71 +227,53 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
 
             const SizedBox(height: 16),
 
-            // 3. Prominent + Add Entry Button (Directly Below Summary)
+            // 3. PROMINENT SINGLE "+ Add New Entry" BUTTON
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.goldPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
                 ),
-                onPressed: () => _showAddEntryModal(context, _selectedCategory),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => MaterialModal(
+                      initialDirection: 'INWARD',
+                      initialCategory: _selectedCategory,
+                      manufacturers: appState.manufacturers,
+                      onSubmit: (entry) => appState.addMaterial(entry),
+                    ),
+                  );
+                },
                 icon: const Icon(Icons.add, color: Colors.white),
-                label: Text(
-                  'Add New ${_selectedCategory.toUpperCase()} Entry',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
+                label: const Text('+ Add New Entry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // 4. Filtered Material Transaction List Header + Advanced Filter Action Button
+            // 4. Transaction List Section
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${_selectedCategory.toUpperCase()} Transactions (${filteredTransactions.length})',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain),
-                ),
-
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        Icons.tune,
-                        color: hasActiveAdvancedFilters ? AppTheme.goldDark : AppTheme.textMuted,
-                      ),
-                      onPressed: () => _showFilterOptionsModal(context),
-                    ),
-                    if (hasActiveAdvancedFilters || _filterDirection != 'ALL')
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _filterDirection = 'ALL';
-                            _filterVendor = '';
-                            _filterPurity = '';
-                          });
-                        },
-                        child: const Text('Reset', style: TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                  ],
-                ),
+                Text('${_selectedCategory.toUpperCase()} Transactions (${filteredTransactions.length})', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
               ],
             ),
             const SizedBox(height: 10),
 
             filteredTransactions.isEmpty
                 ? Container(
-                    padding: const EdgeInsets.all(30),
+                    padding: const EdgeInsets.all(24),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppTheme.borderSubtle),
                     ),
-                    child: Text('No ${_filterDirection != "ALL" ? _filterDirection : ""} $_selectedCategory entries found.'),
+                    child: Text('No $_selectedCategory entries match filters.', style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
                   )
                 : ListView.builder(
                     shrinkWrap: true,
@@ -279,51 +282,25 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                     itemBuilder: (context, index) {
                       final entry = filteredTransactions[index];
                       final isInward = entry.direction == 'INWARD';
-                      final photoUrl = entry.photoUrl;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: AppTheme.borderSubtle)),
                         child: ListTile(
                           onTap: () => _showEntryDetailDialog(context, entry, unitLabel),
-                          leading: Stack(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: photoUrl != null && photoUrl.startsWith('http')
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(10),
-                                        child: Image.network(photoUrl, fit: BoxFit.cover),
-                                      )
-                                    : Icon(
-                                        isInward ? Icons.arrow_downward : Icons.arrow_upward,
-                                        color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                                      ),
-                              ),
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    isInward ? Icons.arrow_downward : Icons.arrow_upward,
-                                    color: Colors.white,
-                                    size: 10,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          leading: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isInward ? Icons.arrow_downward : Icons.arrow_upward,
+                              color: isInward ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                            ),
                           ),
-                          title: Text('${entry.weight} $unitLabel (${entry.purity ?? "24K - 995"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          title: Text('${entry.weight} $unitLabel ${entry.purity != null ? "(${entry.purity})" : ""}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           subtitle: Text('${entry.vendorName} • ${entry.timestamp}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -344,213 +321,67 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
     );
   }
 
-  Widget _buildSummaryBox({
-    required String label,
-    required String value,
-    required Color bg,
-    required Color textCol,
-    required bool isSelected,
-    required Color borderCol,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isSelected ? borderCol : Colors.transparent, width: 2),
-      ),
-      child: Column(
-        children: [
-          Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: textCol)),
-          const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textCol), maxLines: 1),
-        ],
-      ),
-    );
-  }
-
-  void _showAddEntryModal(BuildContext context, String category) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => MaterialModalBottomSheet(defaultCategory: category),
-    );
-  }
-
-  void _showFilterOptionsModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: EdgeInsets.only(
-          top: 20, left: 20, right: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        decoration: const BoxDecoration(
-          color: AppTheme.bgCard,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Filter Transactions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: const InputDecoration(labelText: 'VENDOR / KARIGAR NAME', hintText: 'e.g. MMTC-PAMP / Ramesh'),
-              onChanged: (val) => setState(() => _filterVendor = val),
-            ),
-            const SizedBox(height: 12),
-            if (_selectedCategory == 'gold')
-              DropdownButtonFormField<String>(
-                initialValue: _filterPurity.isEmpty ? null : _filterPurity,
-                decoration: const InputDecoration(labelText: 'FILTER BY PURITY'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('All Purities')),
-                  DropdownMenuItem(value: '24K - 995', child: Text('24K - 995')),
-                  DropdownMenuItem(value: '24K - 999', child: Text('24K - 999')),
-                  DropdownMenuItem(value: '22K - 916', child: Text('22K - 916')),
-                  DropdownMenuItem(value: '18K - 750', child: Text('18K - 750')),
-                ],
-                onChanged: (val) => setState(() => _filterPurity = val ?? ''),
-              ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _filterVendor = '';
-                        _filterPurity = '';
-                        _filterDirection = 'ALL';
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('RESET'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.goldPrimary),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('APPLY FILTERS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Bulletproof Entry Detail Pop-up Dialog
   void _showEntryDetailDialog(BuildContext context, MaterialEntry entry, String unitLabel) {
-    final isInward = entry.direction == 'INWARD';
     showDialog(
       context: context,
-      barrierDismissible: true,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 10,
-        backgroundColor: Colors.white,
         child: Container(
-          padding: const EdgeInsets.all(20),
           constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(8),
+                      color: entry.direction == 'INWARD' ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '${entry.direction} ENTRY',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                        color: entry.direction == 'INWARD' ? const Color(0xFF059669) : const Color(0xFFDC2626),
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppTheme.textMuted),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Image Preview
-              if (entry.photoUrl != null && entry.photoUrl!.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.network(
-                    entry.photoUrl!,
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 100,
-                      color: AppTheme.bgPrimary,
-                      child: const Center(child: Icon(Icons.broken_image, color: AppTheme.textMuted)),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 14),
-
-              // Transaction Details List
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppTheme.bgPrimary,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppTheme.borderSubtle),
                 ),
                 child: Column(
                   children: [
-                    _buildDetailRow('Timestamp:', entry.timestamp),
-                    _buildDetailRow('Weight:', '${entry.weight} $unitLabel'),
-                    if (entry.purity != null) _buildDetailRow('Purity:', entry.purity!),
-                    _buildDetailRow(isInward ? 'Vendor:' : 'Karigar:', entry.vendorName),
-                    _buildDetailRow('Rate:', '₹${entry.price}'),
+                    _buildDetailRow('Timestamp', entry.timestamp),
+                    _buildDetailRow('Material', entry.materialType.toUpperCase()),
+                    _buildDetailRow('Weight', '${entry.weight} $unitLabel'),
+                    if (entry.purity != null) _buildDetailRow('Purity Standard', entry.purity!),
+                    _buildDetailRow(entry.direction == 'INWARD' ? 'Vendor' : 'Karigar', entry.vendorName),
                     const Divider(height: 16),
-                    _buildDetailRow('Total Amount:', '₹${entry.totalAmount.toStringAsFixed(0)}', isBold: true, isInward: isInward),
+                    _buildDetailRow('Total Amount', '₹${entry.totalAmount.toStringAsFixed(0)}', isBold: true),
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Close Button
               SizedBox(
                 width: double.infinity,
-                height: 46,
+                height: 44,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.textMain, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text('CLOSE DETAILS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -560,21 +391,14 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isBold = false, bool isInward = true}) {
+  Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isBold ? 15 : 13,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: isBold ? (isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626)) : AppTheme.textMain,
-            ),
-          ),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: AppTheme.textMain)),
         ],
       ),
     );

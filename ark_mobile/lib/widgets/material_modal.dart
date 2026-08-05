@@ -1,38 +1,47 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/material_entry.dart';
-import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 
-class MaterialModalBottomSheet extends StatefulWidget {
-  final String defaultCategory;
-  const MaterialModalBottomSheet({super.key, this.defaultCategory = 'gold'});
+class MaterialModal extends StatefulWidget {
+  final String initialDirection;
+  final String initialCategory;
+  final List<dynamic> manufacturers;
+  final Function(MaterialEntry) onSubmit;
+
+  const MaterialModal({
+    super.key,
+    this.initialDirection = 'INWARD',
+    this.initialCategory = 'gold',
+    required this.manufacturers,
+    required this.onSubmit,
+  });
 
   @override
-  State<MaterialModalBottomSheet> createState() => _MaterialModalBottomSheetState();
+  State<MaterialModal> createState() => _MaterialModalState();
 }
 
-class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
-  String direction = 'INWARD'; // INWARD or OUTWARD
-  late String materialType;
-  
-  final _weightController = TextEditingController();
-  final _vendorController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _sizeController = TextEditingController();
-  
-  String selectedPurity = '24K - 995';
-  String? selectedManufacturerId;
-  String productType = 'Ring';
+class _MaterialModalState extends State<MaterialModal> {
+  late String _materialType; // 'gold', 'diamond', 'gemstone'
+  late String _direction;    // 'INWARD' or 'OUTWARD'
 
+  final _formKey = GlobalKey<FormState>();
+  final _weightCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController(text: '7200');
+  final _vendorCtrl = TextEditingController();
+  final _diamondSizeCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+
+  String _purity = '24K - 995';
+  String _gemstoneType = 'Ruby';
+  String? _selectedManufacturerId;
+  DateTime? _expectedReturnDate;
+
+  final List<String> _photosBase64 = [];
   final ImagePicker _picker = ImagePicker();
-  final List<XFile> _selectedImages = [];
-  final List<String> _base64Images = [];
 
-  static const List<String> goldPurityOptions = [
+  final List<String> _goldPurityOptions = [
     '24K - 995',
     '24K - 999',
     '22K - 916',
@@ -45,316 +54,507 @@ class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
   @override
   void initState() {
     super.initState();
-    materialType = widget.defaultCategory.toLowerCase();
-    _priceController.text = materialType == 'gold' ? '7200' : (materialType == 'diamond' ? '45000' : '12000');
+    _direction = widget.initialDirection;
+    _materialType = widget.initialCategory.toLowerCase();
+    _updateDefaultPrice(_materialType);
+  }
+
+  void _updateDefaultPrice(String mat) {
+    if (mat == 'gold') {
+      _priceCtrl.text = '7200';
+      _purity = '24K - 995';
+    } else if (mat == 'diamond') {
+      _priceCtrl.text = '45000';
+    } else {
+      _priceCtrl.text = '12000';
+    }
+  }
+
+  @override
+  void dispose() {
+    _weightCtrl.dispose();
+    _priceCtrl.dispose();
+    _vendorCtrl.dispose();
+    _diamondSizeCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  void _showAttachmentBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Attach Photo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickImage(ImageSource.camera);
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgPrimary,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.borderSubtle),
+                      ),
+                      child: Column(
+                        children: const [
+                          Icon(Icons.camera_alt_outlined, color: AppTheme.goldDark, size: 28),
+                          SizedBox(height: 8),
+                          Text('Take Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickImage(ImageSource.gallery);
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgPrimary,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.borderSubtle),
+                      ),
+                      child: Column(
+                        children: const [
+                          Icon(Icons.photo_library_outlined, color: Color(0xFF2563EB), size: 28),
+                          SizedBox(height: 8),
+                          Text('Choose From Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    if (_selectedImages.length >= 3) return;
     try {
-      final XFile? photo = await _picker.pickImage(source: source, imageQuality: 70);
-      if (photo != null) {
-        final bytes = await photo.readAsBytes();
-        final base64Str = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-        setState(() {
-          _selectedImages.add(photo);
-          _base64Images.add(base64Str);
-        });
+      if (source == ImageSource.camera) {
+        final XFile? image = await _picker.pickImage(source: source, imageQuality: 70);
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          setState(() {
+            if (_photosBase64.length < 3) {
+              _photosBase64.add('data:image/jpeg;base64,${base64Encode(bytes)}');
+            }
+          });
+        }
+      } else {
+        final List<XFile> images = await _picker.pickMultiImage(imageQuality: 70);
+        for (var img in images) {
+          if (_photosBase64.length >= 3) break;
+          final bytes = await img.readAsBytes();
+          _photosBase64.add('data:image/jpeg;base64,${base64Encode(bytes)}');
+        }
+        setState(() {});
       }
     } catch (e) {
-      print('Error picking image: $e');
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate()) {
+      final weightVal = double.tryParse(_weightCtrl.text) ?? 0.0;
+      final priceVal = double.tryParse(_priceCtrl.text) ?? 0.0;
+      final total = weightVal * priceVal;
+
+      String finalVendor = _direction == 'INWARD'
+          ? (_vendorCtrl.text.isEmpty ? 'MMTC-PAMP Bullion' : _vendorCtrl.text)
+          : 'Artisan Workshop';
+
+      if (_direction == 'OUTWARD' && _selectedManufacturerId != null) {
+        final mfg = widget.manufacturers.firstWhere(
+          (m) => m.id == _selectedManufacturerId,
+          orElse: () => null,
+        );
+        if (mfg != null) finalVendor = mfg.name;
+      }
+
+      final newEntry = MaterialEntry(
+        id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
+        materialType: _materialType,
+        direction: _direction,
+        weight: weightVal,
+        purity: _materialType == 'gold' ? _purity : null,
+        vendorName: finalVendor,
+        price: priceVal,
+        totalAmount: total,
+        timestamp: DateTime.now().toString().substring(0, 16),
+        notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
+        photoUrl: _photosBase64.isNotEmpty ? _photosBase64.first : null,
+      );
+
+      widget.onSubmit(newEntry);
+      Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final appState = Provider.of<AppState>(context);
-    final timestamp = DateFormat('dd/MM/yyyy, hh:mm a').format(DateTime.now());
-    
-    double weight = double.tryParse(_weightController.text) ?? 0.0;
-    double price = double.tryParse(_priceController.text) ?? 0.0;
-    double totalAmount = weight * price;
-    final catTitle = materialType.toUpperCase();
-
-    return Container(
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      decoration: const BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                
+                // Modal Title
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text('$catTitle VAULT ENTRY', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text('UNIVERSAL VAULT ENTRY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
+                        Text('Record Vault Entry', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Record $catTitle Entry',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // STEP 1: MATERIAL SELECTION (SEGMENTED CONTROL)
+                const Text('STEP 1: SELECT MATERIAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: ['gold', 'diamond', 'gemstone'].map((cat) {
+                      final isSelected = _materialType == cat;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _materialType = cat;
+                              _updateDefaultPrice(cat);
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppTheme.goldDark : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              cat.toUpperCase(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: isSelected ? Colors.white : AppTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // STEP 2: ENTRY TYPE (SEGMENTED CONTROL)
+                const Text('STEP 2: ENTRY TYPE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _direction = 'INWARD'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _direction == 'INWARD' ? const Color(0xFFECFDF5) : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _direction == 'INWARD' ? const Color(0xFF059669) : AppTheme.borderSubtle,
+                              width: _direction == 'INWARD' ? 2 : 1,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.arrow_downward, size: 16, color: Color(0xFF059669)),
+                              SizedBox(width: 4),
+                              Text('Inward (Intake)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF059669))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _direction = 'OUTWARD'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _direction == 'OUTWARD' ? const Color(0xFFFEF2F2) : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _direction == 'OUTWARD' ? const Color(0xFFDC2626) : AppTheme.borderSubtle,
+                              width: _direction == 'OUTWARD' ? 2 : 1,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.arrow_upward, size: 16, color: Color(0xFFDC2626)),
+                              SizedBox(width: 4),
+                              Text('Outward (Issue)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFDC2626))),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: AppTheme.textDim),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
 
-            // Inward vs Outward Toggle
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => direction = 'INWARD'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: direction == 'INWARD' ? const Color(0x2610B981) : AppTheme.bgPrimary,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: direction == 'INWARD' ? AppTheme.inwardGreen : AppTheme.borderSubtle,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.arrow_downward, color: direction == 'INWARD' ? AppTheme.inwardGreen : AppTheme.textDim, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Inward (Store Intake)',
-                            style: TextStyle(
-                              color: direction == 'INWARD' ? AppTheme.inwardGreen : AppTheme.textDim,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                const SizedBox(height: 14),
+
+                // STEP 3: DYNAMIC FIELDS
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgPrimary,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.borderSubtle),
+                  ),
+                  child: Column(
+                    children: [
+                      // Vendor or Karigar Selection
+                      _direction == 'INWARD'
+                          ? TextFormField(
+                              controller: _vendorCtrl,
+                              decoration: const InputDecoration(labelText: 'VENDOR / SUPPLIER', hintText: 'e.g. MMTC-PAMP Bullion'),
+                            )
+                          : DropdownButtonFormField<String>(
+                              value: _selectedManufacturerId,
+                              decoration: const InputDecoration(labelText: 'ASSIGNED KARIGAR'),
+                              items: widget.manufacturers.map((m) {
+                                return DropdownMenuItem<String>(
+                                  value: m.id,
+                                  child: Text(m.name),
+                                );
+                              }).toList(),
+                              onChanged: (val) => setState(() => _selectedManufacturerId = val),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => direction = 'OUTWARD'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: direction == 'OUTWARD' ? const Color(0x26F43F5E) : AppTheme.bgPrimary,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: direction == 'OUTWARD' ? AppTheme.outwardRose : AppTheme.borderSubtle,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.arrow_upward, color: direction == 'OUTWARD' ? AppTheme.outwardRose : AppTheme.textDim, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Outward (Issue Karigar)',
-                            style: TextStyle(
-                              color: direction == 'OUTWARD' ? AppTheme.outwardRose : AppTheme.textDim,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                      const SizedBox(height: 10),
+
+                      // Gold Combination
+                      if (_materialType == 'gold') ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _weightCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(labelText: 'WEIGHT (g)', hintText: '0.000'),
+                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Weight & Purity
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _weightController,
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: materialType == 'gold' ? 'WEIGHT (GRAMS)' : 'WEIGHT (CARATS)',
-                      hintText: '0.000',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: materialType == 'gold'
-                      ? DropdownButtonFormField<String>(
-                          initialValue: selectedPurity,
-                          isExpanded: true,
-                          dropdownColor: AppTheme.bgCard,
-                          decoration: const InputDecoration(labelText: 'GOLD PURITY'),
-                          items: goldPurityOptions.map((p) {
-                            return DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.goldDark)));
-                          }).toList(),
-                          onChanged: (val) => setState(() => selectedPurity = val!),
-                        )
-                      : TextField(
-                          controller: _sizeController,
-                          decoration: const InputDecoration(
-                            labelText: 'SIZE (MM / SIEVE)',
-                            hintText: '2.5 mm',
-                          ),
-                        ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Vendor / Karigar
-            if (direction == 'INWARD')
-              TextField(
-                controller: _vendorController,
-                decoration: const InputDecoration(
-                  labelText: 'VENDOR / SUPPLIER NAME',
-                  hintText: 'e.g. MMTC-PAMP / Surat Syndicate',
-                ),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: selectedManufacturerId,
-                dropdownColor: AppTheme.bgCard,
-                decoration: const InputDecoration(labelText: 'ASSIGNED KARIGAR / MANUFACTURER'),
-                items: appState.manufacturers.map((m) {
-                  return DropdownMenuItem(
-                    value: m.id,
-                    child: Text('${m.name} (${m.office})'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => selectedManufacturerId = val),
-              ),
-            const SizedBox(height: 14),
-
-            // Price & Total Amount
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _priceController,
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: materialType == 'gold' ? 'RATE (₹ / GRAM)' : 'RATE (₹ / CARAT)',
-                      hintText: '7200',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.bgPrimary,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.borderSubtle),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('TOTAL AMOUNT', style: TextStyle(fontSize: 10, color: AppTheme.textMuted, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '₹ ${totalAmount.toStringAsFixed(2)}',
-                          style: const TextStyle(color: AppTheme.inwardGreen, fontWeight: FontWeight.bold, fontSize: 15),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _purity,
+                                decoration: const InputDecoration(labelText: 'GOLD PURITY'),
+                                items: _goldPurityOptions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                                onChanged: (val) => setState(() => _purity = val!),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
+
+                      // Diamond Combination
+                      if (_materialType == 'diamond') ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _weightCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(labelText: 'WEIGHT (CTS)', hintText: '0.00'),
+                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _diamondSizeCtrl,
+                                decoration: const InputDecoration(labelText: 'SIEVE / SIZE', hintText: 'e.g. 2.5 mm'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // Gemstone Combination
+                      if (_materialType == 'gemstone') ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _weightCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(labelText: 'WEIGHT (CTS)', hintText: '0.00'),
+                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _gemstoneType,
+                                decoration: const InputDecoration(labelText: 'GEMSTONE TYPE'),
+                                items: ['Ruby', 'Emerald', 'Sapphire', 'Pearl'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                                onChanged: (val) => setState(() => _gemstoneType = val!),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      const SizedBox(height: 10),
+
+                      // Rate
+                      TextFormField(
+                        controller: _priceCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(labelText: 'RATE (₹ / ${_materialType == "gold" ? "g" : "CTS"})'),
+                        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Notes
+                      TextFormField(
+                        controller: _notesCtrl,
+                        decoration: const InputDecoration(labelText: 'REMARKS / NOTES', hintText: 'Optional tag details...'),
+                      ),
+                    ],
                   ),
                 ),
+
+                const SizedBox(height: 14),
+
+                // REDESIGNED PHOTO ATTACHMENT CAPSULE BUTTON
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('PHOTO ATTACHMENTS (${_photosBase64.length}/3)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      ),
+                      onPressed: _showAttachmentBottomSheet,
+                      icon: const Icon(Icons.add, size: 16, color: AppTheme.goldDark),
+                      label: const Text('+ Add Photos', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
+                    ),
+                  ],
+                ),
+
+                if (_photosBase64.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: _photosBase64.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final base64Str = entry.value;
+                      return Stack(
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            width: 60, height: 60,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppTheme.borderSubtle),
+                              image: DecorationImage(
+                                image: MemoryImage(base64Decode(base64Str.split(',').last)),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 2, right: 10,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _photosBase64.removeAt(idx)),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                child: const Icon(Icons.close, size: 12, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ],
+
+                const SizedBox(height: 18),
+
+                // SAVE ENTRY BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.goldPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: _submit,
+                    child: Text('SAVE ${_materialType.toUpperCase()} ENTRY', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                ),
+
               ],
             ),
-            const SizedBox(height: 14),
-
-            // Photo Attachments (Camera & Gallery picker)
-            Text('PHOTO ATTACHMENTS (${_selectedImages.length}/3)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppTheme.textMain, elevation: 1),
-                  onPressed: () => _pickImage(ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                  label: const Text('Camera', style: TextStyle(fontSize: 12)),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppTheme.textMain, elevation: 1),
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                  icon: const Icon(Icons.photo_library, size: 18),
-                  label: const Text('Gallery', style: TextStyle(fontSize: 12)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.goldPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  final vendorNameStr = direction == 'INWARD' 
-                      ? (_vendorController.text.isEmpty ? 'MMTC-PAMP Bullion Supplier' : _vendorController.text)
-                      : (appState.manufacturers.firstWhere((m) => m.id == selectedManufacturerId, orElse: () => appState.manufacturers.first).name);
-
-                  final newEntry = MaterialEntry(
-                    id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
-                    timestamp: timestamp,
-                    direction: direction,
-                    materialType: materialType,
-                    weight: weight,
-                    purity: materialType == 'gold' ? selectedPurity : null,
-                    size: materialType != 'gold' ? _sizeController.text : null,
-                    vendorName: vendorNameStr,
-                    manufacturerId: selectedManufacturerId,
-                    price: price,
-                    totalAmount: totalAmount,
-                    productType: direction == 'OUTWARD' ? productType : null,
-                    photoUrl: _base64Images.isNotEmpty ? _base64Images.first : 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300',
-                  );
-
-                  appState.addMaterialEntry(newEntry);
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  'SAVE $catTitle ENTRY',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

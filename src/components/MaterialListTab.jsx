@@ -220,7 +220,7 @@ export default function MaterialListTab({
         </div>
       </div>
 
-      {/* 4. Prominent + Add Entry Button */}
+      {/* 4. PROMINENT SINGLE "+ Add New Entry" BUTTON (UNIVERSAL ENTRY FORM) */}
       <button
         onClick={() => onOpenAddModal(selectedCategory)}
         style={{
@@ -240,10 +240,10 @@ export default function MaterialListTab({
           boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)'
         }}
       >
-        <Plus size={20} /> Add New {selectedCategory.toUpperCase()} Entry
+        <Plus size={20} /> Add New Entry
       </button>
 
-      {/* 5. Filtered Material Entry List with Photo Thumbnail Preview */}
+      {/* 5. Filtered Material Entry List */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
@@ -311,50 +311,30 @@ export default function MaterialListTab({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* Entry Thumbnail Image Preview or Direction Icon */}
                     <div style={{ position: 'relative', width: '48px', height: '48px' }}>
                       {photoSrc ? (
                         <img 
                           src={photoSrc} 
-                          alt="Entry Thumbnail" 
-                          style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '10px',
-                            objectFit: 'cover',
-                            border: '1px solid #cbd5e1'
-                          }} 
+                          alt="Thumbnail" 
+                          style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
                         />
                       ) : (
                         <div style={{
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '10px',
+                          width: '48px', height: '48px', borderRadius: '10px',
                           background: isInward ? '#dcfce7' : '#fef2f2',
                           color: isInward ? '#15803d' : '#dc2626',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
                           {isInward ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
                         </div>
                       )}
 
-                      {/* Direction Overlay Badge */}
                       <div style={{
-                        position: 'absolute',
-                        bottom: '-2px',
-                        right: '-2px',
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
+                        position: 'absolute', bottom: '-2px', right: '-2px',
+                        width: '18px', height: '18px', borderRadius: '50%',
                         background: isInward ? '#15803d' : '#dc2626',
-                        color: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '10px',
-                        border: '2px solid #ffffff'
+                        color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '10px', border: '2px solid #ffffff'
                       }}>
                         {isInward ? '↓' : '↑'}
                       </div>
@@ -363,10 +343,7 @@ export default function MaterialListTab({
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{
-                          fontSize: '10px',
-                          fontWeight: '800',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
+                          fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
                           background: isInward ? '#dcfce7' : '#fef2f2',
                           color: isInward ? '#15803d' : '#dc2626'
                         }}>
@@ -395,220 +372,69 @@ export default function MaterialListTab({
         </div>
       </div>
 
-      {/* 6. Advanced Filter Options Modal */}
+      {/* Advanced Filter Options Modal */}
       {isFilterModalOpen && (
         <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 2000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
         }}>
-          <div className="glass-card" style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            width: '100%',
-            maxWidth: '440px',
-            padding: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-          }}>
+          <div className="glass-card" style={{ background: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '440px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                Filter Transactions
-              </h3>
-              <button onClick={() => setIsFilterModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={22} />
-              </button>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Filter Transactions</h3>
+              <button onClick={() => setIsFilterModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={22} /></button>
             </div>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>VENDOR / KARIGAR NAME</label>
                 <input
                   type="text"
-                  placeholder="Filter by vendor or Karigar name..."
+                  placeholder="Filter by vendor..."
                   value={filterVendor}
                   onChange={(e) => setFilterVendor(e.target.value)}
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '4px', boxSizing: 'border-box' }}
                 />
               </div>
-
-              {selectedCategory === 'gold' && (
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>PURITY STANDARD</label>
-                  <select
-                    value={filterPurity}
-                    onChange={(e) => setFilterPurity(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '4px', boxSizing: 'border-box' }}
-                  >
-                    <option value="">All Purities</option>
-                    <option value="24K - 995">24K - 995</option>
-                    <option value="24K - 999">24K - 999</option>
-                    <option value="22K - 916">22K - 916</option>
-                    <option value="18K - 750">18K - 750</option>
-                  </select>
-                </div>
-              )}
-
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleResetFilters();
-                    setIsFilterModalOpen(false);
-                  }}
-                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsFilterModalOpen(false)}
-                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#d97706', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  Apply Filters
-                </button>
+                <button type="button" onClick={() => { handleResetFilters(); setIsFilterModalOpen(false); }} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: '700', cursor: 'pointer' }}>Reset</button>
+                <button type="button" onClick={() => setIsFilterModalOpen(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#d97706', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}>Apply Filters</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 7. Bulletproof Entry Detail Pop-up Modal */}
+      {/* Entry Detail Pop-up Modal */}
       {selectedEntry && (
         <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 3000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', zIndex: 3000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
         }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '24px',
-            width: '100%',
-            maxWidth: '440px',
-            padding: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-            border: '1px solid #e2e8f0',
-            position: 'relative',
-            maxHeight: '90vh',
-            overflowY: 'auto'
-          }}>
-            {/* Header */}
+          <div style={{ background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '440px', padding: '24px', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
-                  color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626'
-                }}>
+                <span style={{ fontSize: '11px', fontWeight: '800', padding: '4px 10px', borderRadius: '6px', background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2', color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626' }}>
                   {selectedEntry.direction} ENTRY
                 </span>
-                <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                  Entry Details
-                </h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Entry Details</h3>
               </div>
-              <button 
-                onClick={() => setSelectedEntry(null)} 
-                style={{
-                  background: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: '#475569'
-                }}
-              >
-                <X size={18} />
-              </button>
+              <button onClick={() => setSelectedEntry(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
             </div>
-
-            {/* Photo Attachment Preview Banner */}
-            {(selectedEntry.photoUrl || (selectedEntry.photos && selectedEntry.photos.length > 0)) && (
+            {selectedEntry.photoUrl && (
               <div style={{ marginBottom: '16px', borderRadius: '16px', overflow: 'hidden', height: '160px', border: '1px solid #e2e8f0' }}>
-                <img 
-                  src={selectedEntry.photoUrl || selectedEntry.photos[0]} 
-                  alt="Attached Entry Photo" 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                />
+                <img src={selectedEntry.photoUrl} alt="Attached Photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
-
-            {/* Details Table */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> Timestamp:</span>
-                <strong style={{ color: '#0f172a' }}>{selectedEntry.timestamp}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={14} /> Category:</span>
-                <strong style={{ color: '#d97706', textTransform: 'uppercase' }}>{selectedEntry.materialType || selectedCategory}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b' }}>Weight:</span>
-                <strong style={{ color: '#0f172a', fontSize: '15px' }}>{selectedEntry.weight} {unitLabel}</strong>
-              </div>
-
-              {selectedEntry.purity && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span style={{ color: '#64748b' }}>Purity Standard:</span>
-                  <strong style={{ color: '#b45309' }}>{selectedEntry.purity}</strong>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><User size={14} /> {selectedEntry.direction === 'INWARD' ? 'Vendor / Supplier:' : 'Assigned Karigar:'}</span>
-                <strong style={{ color: '#0f172a' }}>{selectedEntry.vendorName || 'General Supplier'}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b' }}>Rate per {unitLabel}:</span>
-                <strong style={{ color: '#0f172a' }}>₹{selectedEntry.price}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
-                <span style={{ fontWeight: '800', color: '#0f172a' }}>Total Amount:</span>
-                <strong style={{ fontWeight: '800', color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626' }}>
-                  ₹{selectedEntry.totalAmount ? selectedEntry.totalAmount.toLocaleString('en-IN') : '0'}
-                </strong>
-              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span style={{ color: '#64748b' }}>Timestamp:</span><strong style={{ color: '#0f172a' }}>{selectedEntry.timestamp}</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span style={{ color: '#64748b' }}>Category:</span><strong style={{ color: '#d97706', textTransform: 'uppercase' }}>{selectedEntry.materialType}</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span style={{ color: '#64748b' }}>Weight:</span><strong style={{ color: '#0f172a' }}>{selectedEntry.weight} {unitLabel}</strong></div>
+              {selectedEntry.purity && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span style={{ color: '#64748b' }}>Purity:</span><strong style={{ color: '#b45309' }}>{selectedEntry.purity}</strong></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span style={{ color: '#64748b' }}>{selectedEntry.direction === 'INWARD' ? 'Vendor:' : 'Karigar:'}</span><strong style={{ color: '#0f172a' }}>{selectedEntry.vendorName}</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}><span style={{ fontWeight: '800', color: '#0f172a' }}>Total Amount:</span><strong style={{ fontWeight: '800', color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626' }}>₹{selectedEntry.totalAmount ? selectedEntry.totalAmount.toLocaleString('en-IN') : '0'}</strong></div>
             </div>
-
-            <button
-              onClick={() => setSelectedEntry(null)}
-              style={{
-                width: '100%',
-                marginTop: '16px',
-                padding: '14px',
-                borderRadius: '12px',
-                background: '#0f172a',
-                color: '#ffffff',
-                border: 'none',
-                fontWeight: '800',
-                fontSize: '14px',
-                cursor: 'pointer'
-              }}
-            >
-              Close Details
-            </button>
+            <button onClick={() => setSelectedEntry(null)} style={{ width: '100%', marginTop: '16px', padding: '14px', borderRadius: '12px', background: '#0f172a', color: '#ffffff', border: 'none', fontWeight: '800', cursor: 'pointer' }}>Close Details</button>
           </div>
         </div>
       )}
