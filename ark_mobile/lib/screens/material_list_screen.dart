@@ -15,6 +15,7 @@ class MaterialListScreen extends StatefulWidget {
 
 class _MaterialListScreenState extends State<MaterialListScreen> {
   String _selectedCategory = 'gold'; // 'gold', 'diamond', 'gemstone'
+  String _filterDirection = 'ALL'; // 'ALL', 'INWARD', 'OUTWARD'
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +24,13 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
     // Filter materials by selected category
     final categoryMaterials = appState.materials.where((m) {
       return m.materialType.toLowerCase() == _selectedCategory;
+    }).toList();
+
+    // Filter by summary box click
+    final filteredTransactions = categoryMaterials.where((m) {
+      if (_filterDirection == 'INWARD') return m.direction == 'INWARD';
+      if (_filterDirection == 'OUTWARD') return m.direction == 'OUTWARD';
+      return true;
     }).toList();
 
     // Summary calculations
@@ -67,7 +75,12 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                   final isSelected = _selectedCategory == cat;
                   return Expanded(
                     child: GestureDetector(
-                      onTap: () => setState(() => _selectedCategory = cat),
+                      onTap: () {
+                        setState(() {
+                          _selectedCategory = cat;
+                          _filterDirection = 'ALL';
+                        });
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
@@ -93,7 +106,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
 
             const SizedBox(height: 16),
 
-            // 2. Material Vault Summary Card
+            // 2. Interactive Material Vault Summary Card (Clickable Boxes)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -109,8 +122,8 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${_selectedCategory.toUpperCase()} VAULT SUMMARY',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.goldDark),
+                        '${_selectedCategory.toUpperCase()} VAULT SUMMARY (TAP TO FILTER)',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.goldDark),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -127,31 +140,46 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                     children: [
                       // Total IN
                       Expanded(
-                        child: _buildSummaryBox(
-                          label: 'TOTAL IN',
-                          value: '${totalIn.toStringAsFixed(3)} $unitLabel',
-                          bg: const Color(0xFFECFDF5),
-                          textCol: const Color(0xFF065F46),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _filterDirection = 'INWARD'),
+                          child: _buildSummaryBox(
+                            label: 'TOTAL IN',
+                            value: '${totalIn.toStringAsFixed(3)} $unitLabel',
+                            bg: const Color(0xFFECFDF5),
+                            textCol: const Color(0xFF065F46),
+                            isSelected: _filterDirection == 'INWARD',
+                            borderCol: const Color(0xFF059669),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       // Total OUT
                       Expanded(
-                        child: _buildSummaryBox(
-                          label: 'TOTAL OUT',
-                          value: '${totalOut.toStringAsFixed(3)} $unitLabel',
-                          bg: const Color(0xFFEFF6FF),
-                          textCol: const Color(0xFF1E40AF),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _filterDirection = 'OUTWARD'),
+                          child: _buildSummaryBox(
+                            label: 'TOTAL OUT',
+                            value: '${totalOut.toStringAsFixed(3)} $unitLabel',
+                            bg: const Color(0xFFEFF6FF),
+                            textCol: const Color(0xFF1E40AF),
+                            isSelected: _filterDirection == 'OUTWARD',
+                            borderCol: const Color(0xFF2563EB),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Balance
+                      // Remaining Balance
                       Expanded(
-                        child: _buildSummaryBox(
-                          label: 'REMAINING',
-                          value: '${balance.toStringAsFixed(3)} $unitLabel',
-                          bg: const Color(0xFFFFF7ED),
-                          textCol: const Color(0xFF9A3412),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _filterDirection = 'ALL'),
+                          child: _buildSummaryBox(
+                            label: 'REMAINING',
+                            value: '${balance.toStringAsFixed(3)} $unitLabel',
+                            bg: const Color(0xFFFFF7ED),
+                            textCol: const Color(0xFF9A3412),
+                            isSelected: _filterDirection == 'ALL',
+                            borderCol: const Color(0xFFEA580C),
+                          ),
                         ),
                       ),
                     ],
@@ -183,13 +211,23 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
             const SizedBox(height: 20),
 
             // 4. Filtered Material Transaction List
-            Text(
-              '${_selectedCategory.toUpperCase()} Transactions (${categoryMaterials.length})',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_selectedCategory.toUpperCase()} Transactions (${filteredTransactions.length})',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+                ),
+                if (_filterDirection != 'ALL')
+                  TextButton(
+                    onPressed: () => setState(() => _filterDirection = 'ALL'),
+                    child: const Text('Show All', style: TextStyle(color: AppTheme.goldDark, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+              ],
             ),
             const SizedBox(height: 10),
 
-            categoryMaterials.isEmpty
+            filteredTransactions.isEmpty
                 ? Container(
                     padding: const EdgeInsets.all(30),
                     alignment: Alignment.center,
@@ -198,14 +236,14 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppTheme.borderSubtle),
                     ),
-                    child: Text('No $_selectedCategory entries recorded yet.'),
+                    child: Text('No ${_filterDirection != "ALL" ? _filterDirection : ""} $_selectedCategory entries found.'),
                   )
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: categoryMaterials.length,
+                    itemCount: filteredTransactions.length,
                     itemBuilder: (context, index) {
-                      final entry = categoryMaterials[index];
+                      final entry = filteredTransactions[index];
                       final isInward = entry.direction == 'INWARD';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -244,10 +282,21 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
     );
   }
 
-  Widget _buildSummaryBox({required String label, required String value, required Color bg, required Color textCol}) {
+  Widget _buildSummaryBox({
+    required String label,
+    required String value,
+    required Color bg,
+    required Color textCol,
+    required bool isSelected,
+    required Color borderCol,
+  }) {
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isSelected ? borderCol : Colors.transparent, width: 2),
+      ),
       child: Column(
         children: [
           Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: textCol)),
