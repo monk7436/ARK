@@ -4,15 +4,18 @@ import {
   ArrowUpRight, 
   Users, 
   Search, 
-  Download, 
-  SlidersHorizontal, 
   ChevronDown, 
   Briefcase,
   X,
   Calendar,
   Tag,
   User,
-  Building2
+  Building2,
+  PackageCheck,
+  Hammer,
+  Receipt,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import StoreDropdownModal from './StoreDropdownModal';
 import TeamManagementModal from './TeamManagementModal';
@@ -56,12 +59,21 @@ export default function HomeTab({
     setTeamMembers(prev => [...prev, newMember]);
   };
 
-  // Filter materials and entries
+  // Universal Filter Across Transactions, Vendors, Products, and Karigars
   const filteredEntries = materials.filter(m => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) {
+      if (activeFilter === 'INWARD') return m.direction === 'INWARD';
+      if (activeFilter === 'OUTWARD') return m.direction === 'OUTWARD';
+      return true;
+    }
+
     const matchesSearch = 
-      (m.vendorName && m.vendorName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (m.productType && m.productType.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (m.purity && m.purity.toLowerCase().includes(searchQuery.toLowerCase()));
+      (m.vendorName && m.vendorName.toLowerCase().includes(query)) ||
+      (m.productType && m.productType.toLowerCase().includes(query)) ||
+      (m.purity && m.purity.toLowerCase().includes(query)) ||
+      (m.materialType && m.materialType.toLowerCase().includes(query)) ||
+      (m.id && m.id.toLowerCase().includes(query));
 
     if (!matchesSearch) return false;
 
@@ -71,297 +83,393 @@ export default function HomeTab({
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: '#0f172a' }}>
       
-      {/* 1. Top Company & Interactive Store Header Card */}
+      {/* 1. COMPACT TOP COMPANY HEADER (30-40% Height Reduction) */}
       <div style={{
-        position: 'relative',
-        borderRadius: '20px',
-        overflow: 'hidden',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-        color: '#ffffff',
-        padding: '20px',
-        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.25)'
+        background: '#ffffff',
+        borderRadius: '16px',
+        padding: '14px 18px',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px'
       }}>
-        {/* Background Graphic */}
-        <div style={{
-          position: 'absolute',
-          top: 0, right: 0,
-          width: '60%', height: '100%',
-          backgroundImage: 'radial-gradient(circle at 100% 0%, rgba(217, 119, 6, 0.2) 0%, transparent 70%)',
-          pointerEvents: 'none'
-        }} />
-
-        {/* Top Company Info Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', position: 'relative', zIndex: 2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '42px', height: '42px',
-              borderRadius: '50%',
-              border: '2px solid rgba(255, 255, 255, 0.2)',
-              background: '#d97706',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: '800', fontSize: '18px', color: '#ffffff'
-            }}>
-              {companyInfo.name ? companyInfo.name.charAt(0).toUpperCase() : 'A'}
-            </div>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '700', margin: 0, color: '#f8fafc' }}>
-                {companyInfo.name || 'ark labs'}
-              </h2>
-              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
-                {companyInfo.ownerName || 'Rahul'} (Owner)
-              </p>
-            </div>
+        {/* Left: Company Logo & Identity */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '36px', height: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+            color: '#ffffff',
+            fontWeight: '900',
+            fontSize: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)'
+          }}>
+            {companyInfo.name ? companyInfo.name.charAt(0).toUpperCase() : 'A'}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              padding: '4px 10px', borderRadius: '999px',
-              fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px'
-            }}>EN</span>
-
-            {/* Team Management Icon */}
-            <button
-              onClick={() => setIsTeamModalOpen(true)}
-              title="Team Management"
-              style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                border: 'none', color: '#ffffff',
-                padding: '8px', borderRadius: '50%',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              <Users size={18} />
-            </button>
+          <div>
+            <h2 style={{ fontSize: '15px', fontWeight: '800', margin: 0, color: '#0f172a', lineHeight: '1.2' }}>
+              {companyInfo.name || 'ark labs'}
+            </h2>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: 0, fontWeight: '500' }}>
+              {companyInfo.ownerName || 'Rahul'}
+            </p>
           </div>
         </div>
 
-        {/* Interactive Store Location Card Dropdown */}
+        {/* Center/Right: Active Store Selector Dropdown */}
         <div 
           onClick={() => setIsStoreModalOpen(true)}
           style={{
-            background: 'rgba(255, 255, 255, 0.08)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '14px',
-            padding: '14px 16px',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            position: 'relative', zIndex: 2,
-            cursor: 'pointer'
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '10px',
+            padding: '6px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
           }}
         >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: '#34d399', fontWeight: '700', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>
-              ACTIVE STORE
-            </div>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {activeStoreName}
-            </h3>
+            </span>
           </div>
-          <button style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            border: 'none', borderRadius: '50%',
-            width: '32px', height: '32px', color: '#ffffff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+          <ChevronDown size={14} color="#64748b" />
+        </div>
+
+        {/* Right Actions: Language & Team Management Icon */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            fontSize: '11px',
+            fontWeight: '800',
+            color: '#475569',
+            background: '#f1f5f9',
+            padding: '4px 8px',
+            borderRadius: '6px'
           }}>
-            <ChevronDown size={18} />
+            EN
+          </span>
+
+          <button
+            onClick={() => setIsTeamModalOpen(true)}
+            title="Team Management"
+            style={{
+              background: '#f1f5f9',
+              border: 'none',
+              borderRadius: '10px',
+              width: '34px',
+              height: '34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#0f172a',
+              transition: 'background 0.15s ease'
+            }}
+          >
+            <Users size={17} />
           </button>
         </div>
       </div>
 
+      {/* 2. GLOBAL UNIVERSAL SEARCH BAR */}
+      <div style={{ position: 'relative' }}>
+        <Search 
+          size={18} 
+          color="#94a3b8" 
+          style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} 
+        />
+        <input
+          type="text"
+          placeholder="Search customers, jewellery, manufacturers, transactions, products..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '13px 16px 13px 44px',
+            borderRadius: '14px',
+            border: '1px solid #cbd5e1',
+            background: '#ffffff',
+            fontSize: '13.5px',
+            fontWeight: '500',
+            color: '#0f172a',
+            outline: 'none',
+            boxSizing: 'border-box',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+          }}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            style={{
+              position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
 
-      {/* 2. Four Action Grid Cards (2x2 Grid) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+      {/* 3. CLEAN 2x2 QUICK ACTION GRID */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        
+        {/* Card 1: Material (Vault In & Out) */}
         <div 
           onClick={() => onOpenMaterialModal('inward')}
           className="glass-card clickable-card" 
           style={{
-            padding: '16px', borderRadius: '16px', background: '#ffffff',
-            border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer'
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px'
           }}
         >
-          <div style={{ background: '#ecfdf5', color: '#059669', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
-            <ArrowDownLeft size={24} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#fef3c7', color: '#b45309', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Layers size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: '999px' }}>
+              {materials.length} Entries
+            </span>
           </div>
           <div>
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Material (In)</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Vault Inward</p>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Material</h4>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Vault In & Issue Out</p>
           </div>
         </div>
 
-        <div 
-          onClick={() => onOpenMaterialModal('outward')}
-          className="glass-card clickable-card" 
-          style={{
-            padding: '16px', borderRadius: '16px', background: '#ffffff',
-            border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer'
-          }}
-        >
-          <div style={{ background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
-            <ArrowUpRight size={24} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Material (Out)</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Issue Karigar</p>
-          </div>
-        </div>
-
+        {/* Card 2: Jobs (Manufacturing Work) */}
         <div 
           onClick={onOpenManufacturersModal}
           className="glass-card clickable-card" 
           style={{
-            padding: '16px', borderRadius: '16px', background: '#ffffff',
-            border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer'
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px'
           }}
         >
-          <div style={{ background: '#faf5ff', color: '#9333ea', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
-            <Briefcase size={24} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Hammer size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '999px' }}>
+              3 Active Jobs
+            </span>
           </div>
           <div>
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Manufacturer</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Karigars & Balances</p>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Jobs</h4>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Manufacturing Work</p>
           </div>
         </div>
 
+        {/* Card 3: Manufacturer (Karigars & Balances) */}
+        <div 
+          onClick={onOpenManufacturersModal}
+          className="glass-card clickable-card" 
+          style={{
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#faf5ff', color: '#9333ea', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Briefcase size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#faf5ff', color: '#9333ea', padding: '2px 8px', borderRadius: '999px' }}>
+              {manufacturers.length} Karigars
+            </span>
+          </div>
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Manufacturer</h4>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Karigars & Balances</p>
+          </div>
+        </div>
+
+        {/* Card 4: Customers (Shops & Invoices) */}
         <div 
           onClick={onOpenCustomersModal}
           className="glass-card clickable-card" 
           style={{
-            padding: '16px', borderRadius: '16px', background: '#ffffff',
-            border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer'
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px'
           }}
         >
-          <div style={{ background: '#fff7ed', color: '#ea580c', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
-            <Users size={24} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#fff7ed', color: '#ea580c', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Users size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#fff7ed', color: '#ea580c', padding: '2px 8px', borderRadius: '999px' }}>
+              {customers.length} Accounts
+            </span>
           </div>
           <div>
             <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Customers</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Shops & Invoices</p>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Shops & Invoices</p>
           </div>
         </div>
+
       </div>
 
-
-      {/* 3. Recent Activity Logs Section */}
-      <div style={{ marginTop: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+      {/* 4. RECENT ACTIVITY LOGS SECTION */}
+      <div style={{ marginTop: '6px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
             Recent Activity Logs
           </h3>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '8px', color: '#475569', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Download size={14} /> Export
-            </button>
-            <button style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '8px', color: '#475569', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <SlidersHorizontal size={14} /> Filter
-            </button>
+
+          {/* Filter Pills */}
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {['ALL', 'INWARD', 'OUTWARD'].map(filter => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  border: activeFilter === filter ? '1px solid #d97706' : '1px solid #e2e8f0',
+                  background: activeFilter === filter ? '#fef3c7' : '#ffffff',
+                  color: activeFilter === filter ? '#b45309' : '#64748b',
+                  cursor: 'pointer'
+                }}
+              >
+                {filter}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div style={{ position: 'relative', marginBottom: '14px' }}>
-          <Search size={18} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input
-            type="text"
-            placeholder="Search entries by vendor or product..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%', padding: '12px 14px 12px 42px',
-              borderRadius: '12px', border: '1px solid #e2e8f0',
-              background: '#ffffff', fontSize: '14px', outline: 'none', boxSizing: 'border-box'
-            }}
-          />
-        </div>
-
-        {/* Quick Filter Tabs */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {['ALL', 'INWARD', 'OUTWARD'].map(filter => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              style={{
-                padding: '6px 14px', borderRadius: '999px',
-                fontSize: '12px', fontWeight: '700',
-                border: activeFilter === filter ? '1px solid #d97706' : '1px solid #e2e8f0',
-                background: activeFilter === filter ? '#fef3c7' : '#ffffff',
-                color: activeFilter === filter ? '#b45309' : '#64748b',
-                cursor: 'pointer'
-              }}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
-
-        {/* Entry List */}
+        {/* Transaction Cards List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filteredEntries.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px', background: '#ffffff', borderRadius: '14px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-              No recent entries found.
+            <div style={{ textAlign: 'center', padding: '24px', background: '#ffffff', borderRadius: '14px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '13px' }}>
+              No transactions match your search.
             </div>
           ) : (
-            filteredEntries.map(entry => (
-              <div 
-                key={entry.id} 
-                onClick={() => setSelectedEntry(entry)}
-                className="glass-card clickable-card" 
-                style={{
-                  padding: '14px 16px', borderRadius: '14px', background: '#ffffff',
-                  border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  gap: '12px', cursor: 'pointer'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {entry.photoUrl ? (
-                    <img 
-                      src={entry.photoUrl} 
-                      alt="Entry Attachment" 
-                      style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover' }} 
-                    />
-                  ) : (
-                    <div style={{
-                      width: '48px', height: '48px', borderRadius: '10px',
-                      background: entry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
-                      color: entry.direction === 'INWARD' ? '#15803d' : '#dc2626',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      {entry.direction === 'INWARD' ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
-                    </div>
-                  )}
+            filteredEntries.map(entry => {
+              const isInward = entry.direction === 'INWARD';
+              const photoSrc = entry.photoUrl || (entry.photos && entry.photos[0]);
 
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{
-                        fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
-                        background: entry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
-                        color: entry.direction === 'INWARD' ? '#15803d' : '#dc2626'
+              return (
+                <div 
+                  key={entry.id} 
+                  onClick={() => setSelectedEntry(entry)}
+                  className="glass-card clickable-card" 
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {/* Thumbnail Image or Direction Icon */}
+                    <div style={{ position: 'relative', width: '44px', height: '44px' }}>
+                      {photoSrc ? (
+                        <img 
+                          src={photoSrc} 
+                          alt="Attachment" 
+                          style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
+                        />
+                      ) : (
+                        <div style={{
+                          width: '44px', height: '44px', borderRadius: '10px',
+                          background: isInward ? '#dcfce7' : '#fef2f2',
+                          color: isInward ? '#059669' : '#dc2626',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                          {isInward ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
+                        </div>
+                      )}
+
+                      <div style={{
+                        position: 'absolute', bottom: '-2px', right: '-2px',
+                        width: '16px', height: '16px', borderRadius: '50%',
+                        background: isInward ? '#059669' : '#dc2626',
+                        color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '9px', fontWeight: '900', border: '2px solid #ffffff'
                       }}>
-                        {entry.direction}
-                      </span>
-                      <h4 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                        {entry.weight} g ({entry.purity || '24K - 995'})
-                      </h4>
+                        {isInward ? '↓' : '↑'}
+                      </div>
                     </div>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '3px 0 0 0' }}>
-                      {entry.vendorName} • {entry.timestamp}
-                    </p>
-                  </div>
-                </div>
 
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
-                    ₹{entry.totalAmount ? entry.totalAmount.toLocaleString('en-IN') : '0'}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{
+                          fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
+                          background: isInward ? '#dcfce7' : '#fef2f2',
+                          color: isInward ? '#059669' : '#dc2626'
+                        }}>
+                          {entry.direction}
+                        </span>
+                        <h4 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
+                          {entry.weight} g ({entry.purity || '24K - 995'})
+                        </h4>
+                      </div>
+                      <p style={{ fontSize: '11px', color: '#64748b', margin: '3px 0 0 0', fontWeight: '500' }}>
+                        {entry.vendorName || 'General Supplier'} • {entry.timestamp}
+                      </p>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '10px', color: '#d97706', fontWeight: '600' }}>
-                    {entry.materialType ? entry.materialType.toUpperCase() : 'GOLD'}
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                      ₹{entry.totalAmount ? entry.totalAmount.toLocaleString('en-IN') : '0'}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#d97706', fontWeight: '700' }}>
+                      {(entry.materialType || 'GOLD').toUpperCase()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -371,48 +479,48 @@ export default function HomeTab({
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 1200,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 3000,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '20px'
         }}>
-          <div className="glass-card" style={{
-            background: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '440px',
-            padding: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0'
+          <div style={{
+            background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '440px',
+            padding: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)', border: '1px solid #e2e8f0'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{
-                  fontSize: '11px', fontWeight: '800', padding: '3px 8px', borderRadius: '6px',
+                  fontSize: '11px', fontWeight: '800', padding: '4px 10px', borderRadius: '6px',
                   background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
-                  color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626'
+                  color: selectedEntry.direction === 'INWARD' ? '#059669' : '#dc2626'
                 }}>
                   {selectedEntry.direction} ENTRY
                 </span>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
                   Entry Details
                 </h3>
               </div>
-              <button onClick={() => setSelectedEntry(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                <X size={22} />
+              <button onClick={() => setSelectedEntry(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={18} />
               </button>
             </div>
 
             {selectedEntry.photoUrl && (
-              <div style={{ marginBottom: '16px', borderRadius: '12px', overflow: 'hidden', height: '140px' }}>
+              <div style={{ marginBottom: '16px', borderRadius: '14px', overflow: 'hidden', height: '150px', border: '1px solid #cbd5e1' }}>
                 <img src={selectedEntry.photoUrl} alt="Entry Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> Timestamp:</span>
+                <span style={{ color: '#64748b' }}>Timestamp:</span>
                 <strong style={{ color: '#0f172a' }}>{selectedEntry.timestamp}</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={14} /> Category:</span>
+                <span style={{ color: '#64748b' }}>Category:</span>
                 <strong style={{ color: '#d97706', textTransform: 'uppercase' }}>{selectedEntry.materialType || 'GOLD'}</strong>
               </div>
 
@@ -429,18 +537,13 @@ export default function HomeTab({
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><User size={14} /> {selectedEntry.direction === 'INWARD' ? 'Vendor / Supplier:' : 'Assigned Karigar:'}</span>
+                <span style={{ color: '#64748b' }}>{selectedEntry.direction === 'INWARD' ? 'Vendor:' : 'Karigar:'}</span>
                 <strong style={{ color: '#0f172a' }}>{selectedEntry.vendorName || 'General Supplier'}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b' }}>Rate per Gram:</span>
-                <strong style={{ color: '#0f172a' }}>₹{selectedEntry.price}</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}>
                 <span style={{ fontWeight: '800', color: '#0f172a' }}>Total Amount:</span>
-                <strong style={{ fontWeight: '800', color: '#15803d' }}>
+                <strong style={{ fontWeight: '800', color: selectedEntry.direction === 'INWARD' ? '#059669' : '#dc2626' }}>
                   ₹{selectedEntry.totalAmount ? selectedEntry.totalAmount.toLocaleString('en-IN') : '0'}
                 </strong>
               </div>
@@ -449,9 +552,9 @@ export default function HomeTab({
             <button
               onClick={() => setSelectedEntry(null)}
               style={{
-                width: '100%', marginTop: '16px', padding: '12px',
-                borderRadius: '10px', background: '#0f172a', color: '#ffffff',
-                border: 'none', fontWeight: '700', cursor: 'pointer'
+                width: '100%', marginTop: '16px', padding: '14px',
+                borderRadius: '12px', background: '#0f172a', color: '#ffffff',
+                border: 'none', fontWeight: '800', cursor: 'pointer'
               }}
             >
               Close Details
@@ -460,7 +563,7 @@ export default function HomeTab({
         </div>
       )}
 
-      {/* Store Dropdown & Switcher Modal */}
+      {/* Store Dropdown Modal */}
       <StoreDropdownModal
         isOpen={isStoreModalOpen}
         onClose={() => setIsStoreModalOpen(false)}
