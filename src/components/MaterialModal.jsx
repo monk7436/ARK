@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Camera, Image as ImageIcon, ArrowDownLeft, ArrowUpRight, Check, Trash2, Plus } from 'lucide-react';
+import { X, Camera, Image as ImageIcon, Plus, Calendar, Clock, DollarSign } from 'lucide-react';
 
 export default function MaterialModal({ 
   isOpen, 
@@ -8,65 +8,69 @@ export default function MaterialModal({
   defaultCategory = 'gold',
   manufacturers = [] 
 }) {
-  // Step 1: Material Selection Segmented Control
+  // 1. Material Selection (Segmented Selector at Top)
   const [materialType, setMaterialType] = useState('gold'); // 'gold', 'diamond', 'gemstone'
   
-  // Step 2: Entry Type Segmented Control
-  const [direction, setDirection] = useState('INWARD'); // 'INWARD' or 'OUTWARD'
-
-  // Step 3: Dynamic Fields State
-  const [weight, setWeight] = useState('');
-  const [purity, setPurity] = useState('24K - 995');
-  const [diamondSize, setDiamondSize] = useState('');
-  const [diamondClarity, setDiamondClarity] = useState('VVS - EF');
-  const [gemstoneType, setGemstoneType] = useState('Ruby');
-  
+  // 2. Common Fields State
+  const [dateTime, setDateTime] = useState('');
   const [vendorName, setVendorName] = useState('');
-  const [manufacturerId, setManufacturerId] = useState('');
+  const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('7200');
-  const [productType, setProductType] = useState('Ring');
-  const [expectedReturnDate, setExpectedReturnDate] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Modern Capsule Photo Upload Modal Sheet
+  // 3. Material Specific Fields State
+  const [purity, setPurity] = useState('24K');
+  const [diamondSize, setDiamondSize] = useState('');
+  const [stoneSize, setStoneSize] = useState('');
+
+  // Photo Picker State
   const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
   const [photos, setPhotos] = useState([]);
 
+  // Errors State for strict validation
+  const [errors, setErrors] = useState({});
+
   useEffect(() => {
-    if (defaultCategory) {
-      setMaterialType(defaultCategory.toLowerCase());
-      updateDefaultPrice(defaultCategory.toLowerCase());
+    if (isOpen) {
+      // Auto-populate current date & time
+      const now = new Date();
+      const formattedDT = now.toLocaleString('en-IN', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+      setDateTime(formattedDT);
+
+      if (defaultCategory) {
+        setMaterialType(defaultCategory.toLowerCase());
+        updateDefaultPrice(defaultCategory.toLowerCase());
+      }
     }
-  }, [defaultCategory, isOpen]);
+  }, [isOpen, defaultCategory]);
 
   const updateDefaultPrice = (mat) => {
     if (mat === 'gold') {
       setPrice('7200');
-      setPurity('24K - 995');
+      setPurity('24K');
     } else if (mat === 'diamond') {
       setPrice('45000');
     } else {
       setPrice('12000');
     }
+    setErrors({});
   };
 
   if (!isOpen) return null;
 
-  const totalAmount = (parseFloat(weight) || 0) * (parseFloat(price) || 0);
+  // Real-time Instant Auto-Calculation (Weight × Price)
+  const weightNum = parseFloat(weight) || 0;
+  const priceNum = parseFloat(price) || 0;
+  const totalAmount = weightNum * priceNum;
 
-  const goldPurityOptions = [
-    '24K - 995',
-    '24K - 999',
-    '22K - 916',
-    '20K - 833',
-    '18K - 750',
-    '14K - 585',
-    '9K - 375'
-  ];
+  const goldPurityOptions = ['24K', '23K', '22K', '21K', '20K', '18K', '14K', '10K', '9K'];
 
-  const handleMaterialChange = (type) => {
-    setMaterialType(type);
-    updateDefaultPrice(type);
+  const handleMaterialChange = (mat) => {
+    setMaterialType(mat);
+    updateDefaultPrice(mat);
   };
 
   const handlePhotoUpload = (e, source) => {
@@ -88,49 +92,54 @@ export default function MaterialModal({
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!weight || !price) {
-      alert("Please fill in weight and price");
-      return;
+  const validate = () => {
+    const errs = {};
+    if (!vendorName.trim()) errs.vendorName = 'Vendor Name is required.';
+    if (!weight || parseFloat(weight) <= 0) errs.weight = 'Weight must be greater than zero.';
+    if (!price || parseFloat(price) <= 0) errs.price = 'Price must be greater than zero.';
+
+    if (materialType === 'gold' && !purity) {
+      errs.purity = 'Purity is mandatory for Gold.';
+    }
+    if (materialType === 'diamond' && !diamondSize.trim()) {
+      errs.diamondSize = 'Diamond Size is mandatory for Diamonds (e.g. 0.25 ct).';
+    }
+    if (materialType === 'gemstone' && !stoneSize.trim()) {
+      errs.stoneSize = 'Stone Size is mandatory for Gemstones.';
     }
 
-    const selectedMfg = manufacturers.find(m => m.id === manufacturerId);
-    const finalVendor = direction === 'INWARD'
-      ? (vendorName || 'MMTC-PAMP Bullion Supplier')
-      : (selectedMfg ? selectedMfg.name : 'Artisan Workshop');
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
-    const timestamp = new Date().toLocaleString('en-IN', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: true
-    });
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
 
     const newEntry = {
       id: 'tx-' + Date.now(),
-      timestamp,
-      direction,
+      timestamp: dateTime,
+      direction: 'INWARD',
       materialType,
       weight: parseFloat(weight),
       purity: materialType === 'gold' ? purity : null,
-      diamondSize: materialType === 'diamond' ? diamondSize : null,
-      diamondClarity: materialType === 'diamond' ? diamondClarity : null,
-      gemstoneType: materialType === 'gemstone' ? gemstoneType : null,
-      vendorName: finalVendor,
-      manufacturerId: direction === 'OUTWARD' ? manufacturerId : null,
+      size: materialType === 'diamond' ? diamondSize : (materialType === 'gemstone' ? stoneSize : null),
+      vendorName,
       price: parseFloat(price),
       totalAmount,
-      productType: direction === 'OUTWARD' ? productType : null,
-      expectedReturnDate: direction === 'OUTWARD' ? expectedReturnDate : null,
-      notes,
       photoUrl: photos[0] || 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300',
-      photos
+      photos,
+      notes
     };
 
     onSubmit(newEntry);
     onClose();
     setWeight('');
+    setVendorName('');
+    setDiamondSize('');
+    setStoneSize('');
     setPhotos([]);
-    setNotes('');
+    setErrors({});
   };
 
   return (
@@ -158,13 +167,13 @@ export default function MaterialModal({
       }}>
         
         {/* Modal Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
             <span style={{ fontSize: '11px', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '999px', fontWeight: '800' }}>
-              UNIVERSAL MATERIAL ENTRY
+              MATERIAL VAULT INTAKE
             </span>
             <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '4px 0 0 0', color: '#0f172a' }}>
-              Record Material Vault Entry
+              Add Material Entry
             </h3>
           </div>
           <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -174,30 +183,26 @@ export default function MaterialModal({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          {/* STEP 1: MATERIAL SELECTION (SEGMENTED CONTROL) */}
+          {/* SEGMENTED SELECTOR AT VERY TOP */}
           <div>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              STEP 1: SELECT MATERIAL
-            </label>
             <div style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr 1fr',
               gap: '6px',
               background: '#f1f5f9',
-              padding: '4px',
-              borderRadius: '12px',
-              marginTop: '6px'
+              padding: '5px',
+              borderRadius: '14px'
             }}>
-              {['gold', 'diamond', 'gemstone'].map(cat => {
-                const isSelected = materialType === cat;
+              {['gold', 'diamond', 'gemstone'].map(mat => {
+                const isSelected = materialType === mat;
                 return (
                   <button
-                    key={cat}
+                    key={mat}
                     type="button"
-                    onClick={() => handleMaterialChange(cat)}
+                    onClick={() => handleMaterialChange(mat)}
                     style={{
-                      padding: '10px 8px',
-                      borderRadius: '8px',
+                      padding: '12px 8px',
+                      borderRadius: '10px',
                       border: 'none',
                       background: isSelected ? '#d97706' : 'transparent',
                       color: isSelected ? '#ffffff' : '#64748b',
@@ -205,255 +210,326 @@ export default function MaterialModal({
                       fontSize: '13px',
                       cursor: 'pointer',
                       textTransform: 'uppercase',
-                      transition: 'all 0.15s ease'
+                      transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? '0 2px 6px rgba(217, 119, 6, 0.25)' : 'none'
                     }}
                   >
-                    {cat}
+                    {mat}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* STEP 2: ENTRY TYPE (SEGMENTED CONTROL) */}
+          {/* COMMON FIELD 1: DATE & TIME */}
           <div>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              STEP 2: ENTRY TYPE
+            <label style={{ fontSize: '12px', fontWeight: '800', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Calendar size={14} color="#d97706" /> DATE & TIME (EDITABLE)
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
-              <button
-                type="button"
-                onClick={() => setDirection('INWARD')}
-                style={{
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: direction === 'INWARD' ? '2px solid #059669' : '1px solid #e2e8f0',
-                  background: direction === 'INWARD' ? '#ecfdf5' : '#ffffff',
-                  color: direction === 'INWARD' ? '#059669' : '#64748b',
-                  fontWeight: '800',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <ArrowDownLeft size={18} /> Inward (Store Intake)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDirection('OUTWARD')}
-                style={{
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: direction === 'OUTWARD' ? '2px solid #dc2626' : '1px solid #e2e8f0',
-                  background: direction === 'OUTWARD' ? '#fef2f2' : '#ffffff',
-                  color: direction === 'OUTWARD' ? '#dc2626' : '#64748b',
-                  fontWeight: '800',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <ArrowUpRight size={18} /> Outward (Issue Karigar)
-              </button>
-            </div>
+            <input
+              type="text"
+              value={dateTime}
+              onChange={(e) => setDateTime(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid #cbd5e1',
+                marginTop: '4px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                color: '#0f172a',
+                background: '#ffffff',
+                boxSizing: 'border-box'
+              }}
+            />
           </div>
 
-          {/* STEP 3: DYNAMIC FIELDS COMBINATION */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            
-            {/* Vendor (Inward) OR Karigar (Outward) */}
-            {direction === 'INWARD' ? (
+          {/* COMMON FIELD 2: VENDOR NAME */}
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: '800', color: '#475569' }}>
+              VENDOR NAME <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. MMTC-PAMP Bullion / Surat Diamond Syndicate"
+              value={vendorName}
+              onChange={(e) => setVendorName(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '12px',
+                border: errors.vendorName ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                marginTop: '4px',
+                fontSize: '14px',
+                color: '#0f172a',
+                boxSizing: 'border-box'
+              }}
+            />
+            {errors.vendorName && <div style={{ color: '#dc2626', fontSize: '11px', fontWeight: '700', marginTop: '3px' }}>{errors.vendorName}</div>}
+          </div>
+
+          {/* DYNAMIC MATERIAL FIELDS */}
+
+          {/* GOLD FIELDS */}
+          {materialType === 'gold' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#fffbe8', padding: '14px', borderRadius: '16px', border: '1px solid #fef08a' }}>
               <div>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>VENDOR / SUPPLIER NAME</label>
-                <input
-                  type="text"
-                  placeholder="e.g. MMTC-PAMP Bullion / Surat Syndicate"
-                  value={vendorName}
-                  onChange={(e) => setVendorName(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', boxSizing: 'border-box' }}
-                />
-              </div>
-            ) : (
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>ASSIGNED KARIGAR / MANUFACTURER</label>
-                <select
-                  value={manufacturerId}
-                  onChange={(e) => setManufacturerId(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', boxSizing: 'border-box' }}
-                >
-                  <option value="">-- Select Karigar --</option>
-                  {manufacturers.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.office})</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* GOLD COMBINATION FIELDS */}
-            {materialType === 'gold' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>WEIGHT (GRAMS)</label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    placeholder="0.000"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    required
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>GOLD PURITY</label>
-                  <select
-                    value={purity}
-                    onChange={(e) => setPurity(e.target.value)}
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', fontWeight: '800', color: '#b45309', background: '#fef3c7', boxSizing: 'border-box' }}
-                  >
-                    {goldPurityOptions.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* DIAMOND COMBINATION FIELDS */}
-            {materialType === 'diamond' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>WEIGHT (CARATS / CTS)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00 CTS"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    required
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>SIEVE / SIZE (MM)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sieve 3 / 2.5 mm"
-                    value={diamondSize}
-                    onChange={(e) => setDiamondSize(e.target.value)}
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* GEMSTONE COMBINATION FIELDS */}
-            {materialType === 'gemstone' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>WEIGHT (CTS)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00 CTS"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    required
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>GEMSTONE TYPE</label>
-                  <select
-                    value={gemstoneType}
-                    onChange={(e) => setGemstoneType(e.target.value)}
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', boxSizing: 'border-box' }}
-                  >
-                    <option value="Ruby">Ruby (Manik)</option>
-                    <option value="Emerald">Emerald (Panna)</option>
-                    <option value="Sapphire">Blue Sapphire (Neelam)</option>
-                    <option value="Pearl">Pearl (Moti)</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* Rate & Total Amount */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
-                  RATE (₹ / {materialType === 'gold' ? 'GRAM' : 'CARAT'})
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#b45309' }}>
+                  WEIGHT (grams) <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }}
+                  step="0.001"
+                  placeholder="0.000 g"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: errors.weight ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    fontWeight: '800',
+                    boxSizing: 'border-box'
+                  }}
                 />
+                {errors.weight && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.weight}</div>}
               </div>
 
-              <div style={{
-                background: '#ffffff',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                border: '1px solid #cbd5e1',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>TOTAL AMOUNT</span>
-                <span style={{ fontSize: '16px', fontWeight: '800', color: direction === 'INWARD' ? '#059669' : '#dc2626', marginTop: '2px' }}>
-                  ₹{totalAmount.toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            {/* Expected Return Date (Outward only) */}
-            {direction === 'OUTWARD' && (
               <div>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>EXPECTED RETURN DATE</label>
-                <input
-                  type="date"
-                  value={expectedReturnDate}
-                  onChange={(e) => setExpectedReturnDate(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', boxSizing: 'border-box' }}
-                />
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#b45309' }}>
+                  PURITY <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <select
+                  value={purity}
+                  onChange={(e) => setPurity(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    fontWeight: '800',
+                    color: '#b45309',
+                    background: '#ffffff',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {goldPurityOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               </div>
-            )}
 
-            {/* Notes */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>REMARKS / NOTES</label>
-              <input
-                type="text"
-                placeholder="Optional notes or tag code..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '13px', boxSizing: 'border-box' }}
-              />
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#b45309' }}>
+                  PRICE PER GRAM (₹) <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <div style={{ position: 'relative', marginTop: '4px' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#b45309' }}>₹</span>
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 12px 12px 28px',
+                      borderRadius: '10px',
+                      border: errors.price ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      fontWeight: '800',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                {errors.price && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.price}</div>}
+              </div>
             </div>
+          )}
 
+          {/* DIAMOND FIELDS */}
+          {materialType === 'diamond' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#eff6ff', padding: '14px', borderRadius: '16px', border: '1px solid #bfdbfe' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af' }}>
+                  WEIGHT (Carat / ct) <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00 ct"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: errors.weight ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    fontWeight: '800',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {errors.weight && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.weight}</div>}
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af' }}>
+                  DIAMOND SIZE <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 0.25 ct / 2.5 mm"
+                  value={diamondSize}
+                  onChange={(e) => setDiamondSize(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: errors.diamondSize ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {errors.diamondSize && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.diamondSize}</div>}
+              </div>
+
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af' }}>
+                  PRICE PER CARAT (₹) <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <div style={{ position: 'relative', marginTop: '4px' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#1e40af' }}>₹</span>
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 12px 12px 28px',
+                      borderRadius: '10px',
+                      border: errors.price ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      fontWeight: '800',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                {errors.price && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.price}</div>}
+              </div>
+            </div>
+          )}
+
+          {/* GEMSTONE FIELDS */}
+          {materialType === 'gemstone' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#faf5ff', padding: '14px', borderRadius: '16px', border: '1px solid #e9d5ff' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#6b21a8' }}>
+                  WEIGHT (Carat / ct) <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00 ct"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: errors.weight ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    fontWeight: '800',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {errors.weight && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.weight}</div>}
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#6b21a8' }}>
+                  STONE SIZE <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 5x7 mm Oval"
+                  value={stoneSize}
+                  onChange={(e) => setStoneSize(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: errors.stoneSize ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {errors.stoneSize && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.stoneSize}</div>}
+              </div>
+
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#6b21a8' }}>
+                  PRICE PER CARAT (₹) <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <div style={{ position: 'relative', marginTop: '4px' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#6b21a8' }}>₹</span>
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 12px 12px 28px',
+                      borderRadius: '10px',
+                      border: errors.price ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      fontWeight: '800',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                {errors.price && <div style={{ color: '#dc2626', fontSize: '10px', fontWeight: '700', marginTop: '2px' }}>{errors.price}</div>}
+              </div>
+            </div>
+          )}
+
+          {/* COMMON FIELD 3: READ-ONLY AUTO-CALCULATED TOTAL AMOUNT */}
+          <div style={{
+            background: '#ecfdf5',
+            padding: '14px 16px',
+            borderRadius: '16px',
+            border: '1.5px solid #059669',
+            display: 'flex',
+            justify: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#047857', textTransform: 'uppercase' }}>
+                TOTAL AMOUNT (AUTO-CALCULATED)
+              </span>
+              <p style={{ fontSize: '11px', color: '#065f46', margin: '2px 0 0 0', fontWeight: '500' }}>
+                {weightNum} {materialType === 'gold' ? 'g' : 'ct'} × ₹{priceNum}
+              </p>
+            </div>
+            <span style={{ fontSize: '20px', fontWeight: '900', color: '#047857' }}>
+              ₹{totalAmount.toLocaleString('en-IN')}
+            </span>
           </div>
 
-          {/* REDESIGNED PHOTO ATTACHMENT WORKFLOW (MODERN WHATSAPP / NOTION CAPSULE BUTTON) */}
+          {/* COMMON FIELD 4: PHOTO ATTACHMENT CAPSULE WORKFLOW */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <label style={{ fontSize: '12px', fontWeight: '800', color: '#475569' }}>
                 PHOTO ATTACHMENTS ({photos.length}/3)
               </label>
 
-              {/* Single Modern Capsule Button */}
               <button
                 type="button"
                 onClick={() => setIsPhotoSheetOpen(true)}
@@ -476,7 +552,7 @@ export default function MaterialModal({
               </button>
             </div>
 
-            {/* Small Rounded Thumbnail Previews */}
+            {/* Thumbnail Previews with remove × badge */}
             {photos.length > 0 && (
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '8px' }}>
                 {photos.map((url, idx) => (
@@ -488,7 +564,7 @@ export default function MaterialModal({
                       style={{
                         position: 'absolute',
                         top: '3px', right: '3px',
-                        background: 'rgba(220, 38, 38, 0.9)',
+                        background: 'rgba(220, 38, 38, 0.95)',
                         color: '#ffffff',
                         border: 'none',
                         borderRadius: '50%',
