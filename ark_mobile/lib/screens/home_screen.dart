@@ -105,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.white12),
                       ),
@@ -329,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => MaterialModal(defaultCategory: 'gold'),
+      builder: (_) => const MaterialModalBottomSheet(defaultCategory: 'gold'),
     );
   }
 }
