@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -23,21 +24,22 @@ class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
   final _priceController = TextEditingController();
   final _sizeController = TextEditingController();
   
-  String selectedPurity = '24K - 995 (99.5% Store Standard)';
+  String selectedPurity = '24K - 995';
   String? selectedManufacturerId;
   String productType = 'Ring';
 
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _selectedImages = [];
+  final List<String> _base64Images = [];
 
   static const List<String> goldPurityOptions = [
-    '24K - 995 (99.5% Store Standard)',
-    '24K - 999 (99.9% Fine Gold)',
-    '22K - 916 (91.6% Hallmarked)',
-    '20K - 833 (83.3%)',
-    '18K - 750 (75.0% Fine)',
-    '14K - 585 (58.5% Fine)',
-    '9K - 375 (37.5% Fine)',
+    '24K - 995',
+    '24K - 999',
+    '22K - 916',
+    '20K - 833',
+    '18K - 750',
+    '14K - 585',
+    '9K - 375',
   ];
 
   @override
@@ -50,10 +52,13 @@ class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
   Future<void> _pickImage(ImageSource source) async {
     if (_selectedImages.length >= 3) return;
     try {
-      final XFile? photo = await _picker.pickImage(source: source, imageQuality: 80);
+      final XFile? photo = await _picker.pickImage(source: source, imageQuality: 70);
       if (photo != null) {
+        final bytes = await photo.readAsBytes();
+        final base64Str = 'data:image/jpeg;base64,${base64Encode(bytes)}';
         setState(() {
           _selectedImages.add(photo);
+          _base64Images.add(base64Str);
         });
       }
     } catch (e) {
@@ -203,12 +208,12 @@ class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
                 Expanded(
                   child: materialType == 'gold'
                       ? DropdownButtonFormField<String>(
-                          value: selectedPurity,
+                          initialValue: selectedPurity,
                           isExpanded: true,
                           dropdownColor: AppTheme.bgCard,
-                          decoration: const InputDecoration(labelText: 'GOLD PURITY SELECTION'),
+                          decoration: const InputDecoration(labelText: 'GOLD PURITY'),
                           items: goldPurityOptions.map((p) {
-                            return DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.goldDark)));
+                            return DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.goldDark)));
                           }).toList(),
                           onChanged: (val) => setState(() => selectedPurity = val!),
                         )
@@ -235,7 +240,7 @@ class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
               )
             else
               DropdownButtonFormField<String>(
-                value: selectedManufacturerId,
+                initialValue: selectedManufacturerId,
                 dropdownColor: AppTheme.bgCard,
                 decoration: const InputDecoration(labelText: 'ASSIGNED KARIGAR / MANUFACTURER'),
                 items: appState.manufacturers.map((m) {
@@ -289,7 +294,7 @@ class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
             const SizedBox(height: 14),
 
             // Photo Attachments (Camera & Gallery picker)
-            const Text('PHOTO ATTACHMENTS (MAX 3)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+            Text('PHOTO ATTACHMENTS (${_selectedImages.length}/3)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -337,7 +342,7 @@ class _MaterialModalBottomSheetState extends State<MaterialModalBottomSheet> {
                     price: price,
                     totalAmount: totalAmount,
                     productType: direction == 'OUTWARD' ? productType : null,
-                    photoUrl: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300',
+                    photoUrl: _base64Images.isNotEmpty ? _base64Images.first : 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300',
                   );
 
                   appState.addMaterialEntry(newEntry);

@@ -12,14 +12,14 @@ export default function MaterialModal({
   const [materialType, setMaterialType] = useState('gold');
   
   const [weight, setWeight] = useState('');
-  const [purity, setPurity] = useState('24K - 995 (99.5% Store Standard)');
+  const [purity, setPurity] = useState('24K - 995');
   const [size, setSize] = useState('');
   const [vendorName, setVendorName] = useState('');
   const [manufacturerId, setManufacturerId] = useState('');
   const [price, setPrice] = useState('7200');
   const [productType, setProductType] = useState('Ring');
   
-  // Multi-photo attachments (up to 3 images)
+  // Multi-photo attachments (Base64 data URLs for zero-config persistence)
   const [photos, setPhotos] = useState([]);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function MaterialModal({
       setMaterialType(defaultCategory.toLowerCase());
       if (defaultCategory.toLowerCase() === 'gold') {
         setPrice('7200');
-        setPurity('24K - 995 (99.5% Store Standard)');
+        setPurity('24K - 995');
       } else if (defaultCategory.toLowerCase() === 'diamond') {
         setPrice('45000');
       } else {
@@ -41,20 +41,25 @@ export default function MaterialModal({
   const totalAmount = (parseFloat(weight) || 0) * (parseFloat(price) || 0);
 
   const goldPurityOptions = [
-    '24K - 995 (99.5% Store Standard)',
-    '24K - 999 (99.9% Fine Gold)',
-    '22K - 916 (91.6% Hallmarked)',
-    '20K - 833 (83.3%)',
-    '18K - 750 (75.0% Fine)',
-    '14K - 585 (58.5% Fine)',
-    '9K - 375 (37.5% Fine)'
+    '24K - 995',
+    '24K - 999',
+    '22K - 916',
+    '20K - 833',
+    '18K - 750',
+    '14K - 585',
+    '9K - 375'
   ];
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      const newPhotoUrls = files.slice(0, 3 - photos.length).map(file => URL.createObjectURL(file));
-      setPhotos(prev => [...prev, ...newPhotoUrls].slice(0, 3));
+      files.slice(0, 3 - photos.length).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotos(prev => [...prev, reader.result].slice(0, 3));
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
@@ -98,7 +103,6 @@ export default function MaterialModal({
 
     onSubmit(newEntry);
     onClose();
-    // Reset
     setWeight('');
     setPhotos([]);
   };
@@ -136,7 +140,7 @@ export default function MaterialModal({
               {categoryTitle} VAULT ENTRY
             </span>
             <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '4px 0 0 0', color: '#0f172a' }}>
-              Record {categoryTitle} Transaction
+              Record {categoryTitle} Entry
             </h3>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
@@ -146,7 +150,7 @@ export default function MaterialModal({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           
-          {/* Direction Selector (Inward vs Outward) */}
+          {/* Inward vs Outward Selector */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <button
               type="button"
@@ -191,40 +195,19 @@ export default function MaterialModal({
             </button>
           </div>
 
-          {/* Weight Input */}
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
-              WEIGHT ({materialType === 'gold' ? 'GRAMS' : 'CARATS'})
-            </label>
-            <input
-              type="number"
-              step="0.001"
-              placeholder="0.000"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid #cbd5e1',
-                marginTop: '4px',
-                fontSize: '15px',
-                fontWeight: '700',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
-          {/* Gold Purity Dropdown (24K down to 9K) */}
-          {materialType === 'gold' ? (
+          {/* Weight & Gold Purity Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
-                GOLD PURITY SELECTION
+                WEIGHT ({materialType === 'gold' ? 'GRAMS' : 'CARATS'})
               </label>
-              <select
-                value={purity}
-                onChange={(e) => setPurity(e.target.value)}
+              <input
+                type="number"
+                step="0.001"
+                placeholder="0.000"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                required
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -233,38 +216,60 @@ export default function MaterialModal({
                   marginTop: '4px',
                   fontSize: '14px',
                   fontWeight: '700',
-                  color: '#b45309',
-                  background: '#fef3c7',
-                  boxSizing: 'border-box'
-                }}
-              >
-                {goldPurityOptions.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>SIZE (MM / SIEVE)</label>
-              <input
-                type="text"
-                placeholder="e.g. 2.5 mm / Sieve 3"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  marginTop: '4px',
-                  fontSize: '14px',
                   boxSizing: 'border-box'
                 }}
               />
             </div>
-          )}
 
-          {/* Vendor Name or Assigned Karigar */}
+            {materialType === 'gold' ? (
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
+                  GOLD PURITY
+                </label>
+                <select
+                  value={purity}
+                  onChange={(e) => setPurity(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    fontWeight: '800',
+                    color: '#b45309',
+                    background: '#fef3c7',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {goldPurityOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>SIZE (MM / SIEVE)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 2.5 mm"
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    marginTop: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Vendor / Karigar */}
           {direction === 'INWARD' ? (
             <div>
               <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>VENDOR / SUPPLIER NAME</label>
@@ -308,7 +313,7 @@ export default function MaterialModal({
             </div>
           )}
 
-          {/* Rate per Gram & Total Amount */}
+          {/* Rate & Total Amount */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
@@ -374,11 +379,11 @@ export default function MaterialModal({
             </div>
           )}
 
-          {/* Photo Attachments (Camera & Up to 3 Gallery Photos) */}
+          {/* Photo Attachments */}
           <div>
             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'flex', justifyContent: 'space-between' }}>
               <span>PHOTO ATTACHMENTS ({photos.length}/3)</span>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>Camera or Gallery</span>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>Camera / Gallery</span>
             </label>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px', alignItems: 'center' }}>
