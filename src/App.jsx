@@ -3,6 +3,7 @@ import NavigationBar from './components/NavigationBar';
 import HomeTab from './components/HomeTab';
 import InventoryTab from './components/InventoryTab';
 import ProfileTab from './components/ProfileTab';
+import MaterialListTab from './components/MaterialListTab';
 import ManufacturingTab from './components/ManufacturingTab';
 import CustomersTab from './components/CustomersTab';
 import MaterialModal from './components/MaterialModal';
@@ -10,16 +11,17 @@ import { X } from 'lucide-react';
 import { API } from './api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home');
-  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
-  const [modalDefaultDirection, setModalDefaultDirection] = useState('inward');
+  const [activeTab, setActiveTab] = useState('home'); // 'home', 'inventory', 'profile', 'material_list'
+  const [materialListDirection, setMaterialListDirection] = useState('INWARD');
   
-  // Modals for Manufacturer and Customer detail views from 4 Home Boxes
+  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+  const [modalDefaultCategory, setModalDefaultCategory] = useState('gold');
+  
   const [isMfgModalOpen, setIsMfgModalOpen] = useState(false);
   const [isCustModalOpen, setIsCustModalOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
 
-  // Company Information State (Control App Style)
+  // Company Info State
   const [companyInfo, setCompanyInfo] = useState({
     name: 'ark labs',
     ownerName: 'Rahul',
@@ -146,8 +148,13 @@ export default function App() {
   }, []);
 
   // Handlers
-  const handleOpenMaterialModal = (dir = 'inward') => {
-    setModalDefaultDirection(dir);
+  const handleOpenMaterialList = (dir = 'INWARD') => {
+    setMaterialListDirection(dir);
+    setActiveTab('material_list');
+  };
+
+  const handleOpenAddModal = (cat = 'gold') => {
+    setModalDefaultCategory(cat);
     setIsMaterialModalOpen(true);
   };
 
@@ -207,7 +214,6 @@ export default function App() {
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 16px 90px 16px' }}>
       
-      {/* 3 Main Bottom Tabs */}
       <main>
         {activeTab === 'home' && (
           <HomeTab
@@ -215,10 +221,20 @@ export default function App() {
             materials={materials}
             manufacturers={manufacturers}
             customers={customers}
-            onOpenMaterialModal={(dir) => handleOpenMaterialModal(dir)}
+            onOpenMaterialModal={(dir) => handleOpenMaterialList(dir.toUpperCase())}
             onOpenManufacturersModal={() => setIsMfgModalOpen(true)}
             onOpenCustomersModal={() => setIsCustModalOpen(true)}
             onOpenStaffModal={() => setIsStaffModalOpen(true)}
+          />
+        )}
+
+        {activeTab === 'material_list' && (
+          <MaterialListTab
+            initialDirection={materialListDirection}
+            materials={materials}
+            manufacturers={manufacturers}
+            onBack={() => setActiveTab('home')}
+            onOpenAddModal={(cat) => handleOpenAddModal(cat)}
           />
         )}
 
@@ -238,16 +254,16 @@ export default function App() {
         )}
       </main>
 
-      {/* Shared Material Inward/Outward Modal */}
+      {/* Shared Add Entry Modal */}
       <MaterialModal
         isOpen={isMaterialModalOpen}
         onClose={() => setIsMaterialModalOpen(false)}
         onSubmit={handleAddMaterialSubmit}
-        defaultCategory={modalDefaultDirection === 'outward' ? 'gold' : 'gold'}
+        defaultCategory={modalDefaultCategory}
         manufacturers={manufacturers}
       />
 
-      {/* Manufacturer Modal / Overlay */}
+      {/* Manufacturer Modal */}
       {isMfgModalOpen && (
         <div style={{
           position: 'fixed',
@@ -282,7 +298,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Customers Modal / Overlay */}
+      {/* Customers Modal */}
       {isCustModalOpen && (
         <div style={{
           position: 'fixed',
@@ -291,7 +307,7 @@ export default function App() {
           backdropFilter: 'blur(4px)',
           zIndex: 1000,
           display: 'flex',
-          justifyContent: 'center',
+          justify.content: 'center',
           alignItems: 'flex-end'
         }}>
           <div style={{
@@ -356,8 +372,8 @@ export default function App() {
         </div>
       )}
 
-      {/* 3 Tab Navigation Bar */}
-      <NavigationBar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Navigation Bar */}
+      <NavigationBar activeTab={activeTab === 'material_list' ? 'home' : activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 }

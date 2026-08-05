@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
-import '../widgets/material_modal.dart';
+import 'material_list_screen.dart';
 import 'manufacturing_screen.dart';
 import 'invoicing_screen.dart';
 
@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 children: [
-                  // Box 1: Material (In)
+                  // Box 1: Material (In) -> Opens MaterialListScreen
                   _buildActionCard(
                     context,
                     title: 'Material (In)',
@@ -151,10 +151,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.south_west,
                     iconBg: const Color(0xFFECFDF5),
                     iconColor: const Color(0xFF059669),
-                    onTap: () => _showMaterialModal(context, 'INWARD'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MaterialListScreen(initialDirection: 'INWARD'))),
                   ),
 
-                  // Box 2: Material (Out)
+                  // Box 2: Material (Out) -> Opens MaterialListScreen
                   _buildActionCard(
                     context,
                     title: 'Material (Out)',
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.north_east,
                     iconBg: const Color(0xFFEFF6FF),
                     iconColor: const Color(0xFF2563EB),
-                    onTap: () => _showMaterialModal(context, 'OUTWARD'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MaterialListScreen(initialDirection: 'OUTWARD'))),
                   ),
 
                   // Box 3: Manufacturer
@@ -321,15 +321,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  void _showMaterialModal(BuildContext context, String direction) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const MaterialModalBottomSheet(defaultCategory: 'gold'),
     );
   }
 }
