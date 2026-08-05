@@ -16,6 +16,10 @@ class MaterialListScreen extends StatefulWidget {
 class _MaterialListScreenState extends State<MaterialListScreen> {
   String _selectedCategory = 'gold'; // 'gold', 'diamond', 'gemstone'
   String _filterDirection = 'ALL'; // 'ALL', 'INWARD', 'OUTWARD'
+  
+  // Advanced Filter state
+  String _filterVendor = '';
+  String _filterPurity = '';
 
   @override
   Widget build(BuildContext context) {
@@ -24,13 +28,6 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
     // Filter materials by selected category
     final categoryMaterials = appState.materials.where((m) {
       return m.materialType.toLowerCase() == _selectedCategory;
-    }).toList();
-
-    // Filter by summary box click
-    final filteredTransactions = categoryMaterials.where((m) {
-      if (_filterDirection == 'INWARD') return m.direction == 'INWARD';
-      if (_filterDirection == 'OUTWARD') return m.direction == 'OUTWARD';
-      return true;
     }).toList();
 
     // Summary calculations
@@ -44,6 +41,25 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
 
     final double balance = totalIn - totalOut;
     final unitLabel = _selectedCategory == 'gold' ? 'g' : 'CTS';
+
+    // Advanced Filtering Logic
+    final filteredTransactions = categoryMaterials.where((m) {
+      if (_filterDirection == 'INWARD' && m.direction != 'INWARD') return false;
+      if (_filterDirection == 'OUTWARD' && m.direction != 'OUTWARD') return false;
+
+      if (_filterVendor.isNotEmpty &&
+          !m.vendorName.toLowerCase().contains(_filterVendor.toLowerCase())) {
+        return false;
+      }
+
+      if (_filterPurity.isNotEmpty && m.purity != _filterPurity) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+
+    final hasActiveAdvancedFilters = _filterVendor.isNotEmpty || _filterPurity.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
@@ -106,7 +122,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
 
             const SizedBox(height: 16),
 
-            // 2. Interactive Material Vault Summary Card (Clickable Boxes)
+            // 2. Material Vault Summary Card (In = Green, OUT = RED, Remaining = BLUE)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -122,7 +138,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${_selectedCategory.toUpperCase()} VAULT SUMMARY (TAP TO FILTER)',
+                        '${_selectedCategory.toUpperCase()} VAULT SUMMARY',
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.goldDark),
                       ),
                       Container(
@@ -138,7 +154,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      // Total IN
+                      // Total IN (Green)
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _filterDirection = 'INWARD'),
@@ -146,39 +162,39 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                             label: 'TOTAL IN',
                             value: '${totalIn.toStringAsFixed(3)} $unitLabel',
                             bg: const Color(0xFFECFDF5),
-                            textCol: const Color(0xFF065F46),
+                            textCol: const Color(0xFF047857),
                             isSelected: _filterDirection == 'INWARD',
                             borderCol: const Color(0xFF059669),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Total OUT
+                      // Total OUT (RED)
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _filterDirection = 'OUTWARD'),
                           child: _buildSummaryBox(
                             label: 'TOTAL OUT',
                             value: '${totalOut.toStringAsFixed(3)} $unitLabel',
-                            bg: const Color(0xFFEFF6FF),
-                            textCol: const Color(0xFF1E40AF),
+                            bg: const Color(0xFFFEF2F2),
+                            textCol: const Color(0xFFDC2626),
                             isSelected: _filterDirection == 'OUTWARD',
-                            borderCol: const Color(0xFF2563EB),
+                            borderCol: const Color(0xFFDC2626),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Remaining Balance
+                      // Remaining Balance (BLUE)
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _filterDirection = 'ALL'),
                           child: _buildSummaryBox(
                             label: 'REMAINING',
                             value: '${balance.toStringAsFixed(3)} $unitLabel',
-                            bg: const Color(0xFFFFF7ED),
-                            textCol: const Color(0xFF9A3412),
+                            bg: const Color(0xFFEFF6FF),
+                            textCol: const Color(0xFF2563EB),
                             isSelected: _filterDirection == 'ALL',
-                            borderCol: const Color(0xFFEA580C),
+                            borderCol: const Color(0xFF2563EB),
                           ),
                         ),
                       ),
@@ -210,7 +226,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
 
             const SizedBox(height: 20),
 
-            // 4. Filtered Material Transaction List
+            // 4. Filtered Material Transaction List Header + Advanced Filter Action Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -218,11 +234,29 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                   '${_selectedCategory.toUpperCase()} Transactions (${filteredTransactions.length})',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain),
                 ),
-                if (_filterDirection != 'ALL')
-                  TextButton(
-                    onPressed: () => setState(() => _filterDirection = 'ALL'),
-                    child: const Text('Show All', style: TextStyle(color: AppTheme.goldDark, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
+
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.tune,
+                        color: hasActiveAdvancedFilters ? AppTheme.goldDark : AppTheme.textMuted,
+                      ),
+                      onPressed: () => _showFilterOptionsModal(context),
+                    ),
+                    if (hasActiveAdvancedFilters || _filterDirection != 'ALL')
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _filterDirection = 'ALL';
+                            _filterVendor = '';
+                            _filterPurity = '';
+                          });
+                        },
+                        child: const Text('Reset', style: TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -253,15 +287,15 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                           leading: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFDBEAFE),
+                              color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
                               isInward ? Icons.arrow_downward : Icons.arrow_upward,
-                              color: isInward ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
+                              color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
                             ),
                           ),
-                          title: Text('${entry.weight} $unitLabel (${entry.purity ?? "24K 995"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          title: Text('${entry.weight} $unitLabel (${entry.purity ?? "24K - 995"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           subtitle: Text('${entry.vendorName} • ${entry.timestamp}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -316,7 +350,84 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
     );
   }
 
+  void _showFilterOptionsModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.only(
+          top: 20, left: 20, right: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        decoration: const BoxDecoration(
+          color: AppTheme.bgCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Filter Transactions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              decoration: const InputDecoration(labelText: 'VENDOR / KARIGAR NAME', hintText: 'e.g. MMTC-PAMP / Ramesh'),
+              onChanged: (val) => setState(() => _filterVendor = val),
+            ),
+            const SizedBox(height: 12),
+            if (_selectedCategory == 'gold')
+              DropdownButtonFormField<String>(
+                initialValue: _filterPurity.isEmpty ? null : _filterPurity,
+                decoration: const InputDecoration(labelText: 'FILTER BY PURITY'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('All Purities')),
+                  DropdownMenuItem(value: '24K - 995', child: Text('24K - 995')),
+                  DropdownMenuItem(value: '24K - 999', child: Text('24K - 999')),
+                  DropdownMenuItem(value: '22K - 916', child: Text('22K - 916')),
+                  DropdownMenuItem(value: '18K - 750', child: Text('18K - 750')),
+                ],
+                onChanged: (val) => setState(() => _filterPurity = val ?? ''),
+              ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _filterVendor = '';
+                        _filterPurity = '';
+                        _filterDirection = 'ALL';
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('RESET'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.goldPrimary),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('APPLY FILTERS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showEntryDetailDialog(BuildContext context, MaterialEntry entry, String unitLabel) {
+    final isInward = entry.direction == 'INWARD';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -326,7 +437,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: entry.direction == 'INWARD' ? const Color(0xFFDCFCE7) : const Color(0xFFDBEAFE),
+                color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -334,7 +445,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: entry.direction == 'INWARD' ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
+                  color: isInward ? const Color(0xFF15803D) : const Color(0xFFDC2626),
                 ),
               ),
             ),
@@ -355,7 +466,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
             _buildDetailRow('Timestamp:', entry.timestamp),
             _buildDetailRow('Weight:', '${entry.weight} $unitLabel'),
             if (entry.purity != null) _buildDetailRow('Purity:', entry.purity!),
-            _buildDetailRow(entry.direction == 'INWARD' ? 'Vendor:' : 'Karigar:', entry.vendorName),
+            _buildDetailRow(isInward ? 'Vendor:' : 'Karigar:', entry.vendorName),
             _buildDetailRow('Rate:', '₹${entry.price}'),
             const Divider(),
             _buildDetailRow('Total Amount:', '₹${entry.totalAmount.toStringAsFixed(0)}', isBold: true),

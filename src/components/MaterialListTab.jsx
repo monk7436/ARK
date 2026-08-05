@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, X, Calendar, User, Tag, Image as ImageIcon } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Plus, 
+  ArrowDownLeft, 
+  ArrowUpRight, 
+  X, 
+  Calendar, 
+  User, 
+  Tag, 
+  SlidersHorizontal, 
+  RotateCcw,
+  Check
+} from 'lucide-react';
 
 export default function MaterialListTab({ 
   initialDirection = 'INWARD',
@@ -11,6 +23,13 @@ export default function MaterialListTab({
   const [selectedCategory, setSelectedCategory] = useState('gold'); // 'gold', 'diamond', 'gemstone'
   const [filterDirection, setFilterDirection] = useState('ALL'); // 'ALL', 'INWARD', 'OUTWARD'
   const [selectedEntry, setSelectedEntry] = useState(null); // Detail modal
+  
+  // Advanced Filter Modal State
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [filterVendor, setFilterVendor] = useState('');
+  const [filterPurity, setFilterPurity] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   // Filter materials by selected category
   const categoryMaterials = materials.filter(m => {
@@ -18,7 +37,7 @@ export default function MaterialListTab({
     return mType === selectedCategory;
   });
 
-  // Calculate Summary: Total IN, Total OUT, Balance
+  // Calculate Summary: Total IN (Green), Total OUT (RED), Remaining (BLUE)
   const totalIn = categoryMaterials
     .filter(m => m.direction === 'INWARD')
     .reduce((sum, m) => sum + (parseFloat(m.weight) || 0), 0);
@@ -30,12 +49,34 @@ export default function MaterialListTab({
   const balance = totalIn - totalOut;
   const unitLabel = selectedCategory === 'gold' ? 'g' : 'CTS';
 
-  // Filter transaction list based on active summary box selection
+  // Advanced Filter Matching Logic
   const filteredTransactions = categoryMaterials.filter(m => {
-    if (filterDirection === 'INWARD') return m.direction === 'INWARD';
-    if (filterDirection === 'OUTWARD') return m.direction === 'OUTWARD';
+    // 1. Direction Filter
+    if (filterDirection === 'INWARD' && m.direction !== 'INWARD') return false;
+    if (filterDirection === 'OUTWARD' && m.direction !== 'OUTWARD') return false;
+
+    // 2. Vendor / Karigar Filter
+    if (filterVendor && !((m.vendorName || '').toLowerCase().includes(filterVendor.toLowerCase()))) {
+      return false;
+    }
+
+    // 3. Purity Filter
+    if (filterPurity && m.purity !== filterPurity) {
+      return false;
+    }
+
     return true;
   });
+
+  const hasActiveAdvancedFilters = filterVendor || filterPurity || filterStartDate || filterEndDate;
+
+  const handleResetFilters = () => {
+    setFilterVendor('');
+    setFilterPurity('');
+    setFilterStartDate('');
+    setFilterEndDate('');
+    setFilterDirection('ALL');
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -108,7 +149,7 @@ export default function MaterialListTab({
         })}
       </div>
 
-      {/* 3. Interactive Material Summary Vault Card (Clickable Boxes) */}
+      {/* 3. Material Vault Summary Card (In = Green, Out = RED, Remaining = BLUE) */}
       <div className="glass-card" style={{
         padding: '20px',
         borderRadius: '18px',
@@ -118,7 +159,7 @@ export default function MaterialListTab({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <span style={{ fontSize: '12px', fontWeight: '800', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {selectedCategory.toUpperCase()} VAULT SUMMARY (TAP TO FILTER)
+            {selectedCategory.toUpperCase()} VAULT SUMMARY
           </span>
           <span style={{ fontSize: '11px', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '999px', fontWeight: '700' }}>
             LIVE BALANCE
@@ -126,7 +167,7 @@ export default function MaterialListTab({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', textAlign: 'center' }}>
-          {/* Total IN (Clickable) */}
+          {/* Total IN (Green) */}
           <div 
             onClick={() => setFilterDirection('INWARD')}
             style={{
@@ -145,47 +186,47 @@ export default function MaterialListTab({
             </div>
           </div>
 
-          {/* Total OUT (Clickable) */}
+          {/* Total OUT (RED) */}
           <div 
             onClick={() => setFilterDirection('OUTWARD')}
             style={{
-              background: '#eff6ff',
+              background: '#fef2f2',
               padding: '12px 8px',
               borderRadius: '12px',
-              border: filterDirection === 'OUTWARD' ? '2px solid #2563eb' : '1px solid #bfdbfe',
+              border: filterDirection === 'OUTWARD' ? '2px solid #dc2626' : '1px solid #fca5a5',
               cursor: 'pointer',
-              boxShadow: filterDirection === 'OUTWARD' ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : 'none',
+              boxShadow: filterDirection === 'OUTWARD' ? '0 0 0 3px rgba(220, 38, 38, 0.2)' : 'none',
               transition: 'all 0.2s ease'
             }}
           >
-            <div style={{ fontSize: '10px', fontWeight: '800', color: '#1d4ed8' }}>TOTAL OUT</div>
-            <div style={{ fontSize: '16px', fontWeight: '800', color: '#1e40af', marginTop: '2px' }}>
+            <div style={{ fontSize: '10px', fontWeight: '800', color: '#dc2626' }}>TOTAL OUT</div>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#991b1b', marginTop: '2px' }}>
               {totalOut.toFixed(3)} {unitLabel}
             </div>
           </div>
 
-          {/* Vault Balance (Clickable - Resets to ALL) */}
+          {/* Remaining Balance (BLUE) */}
           <div 
             onClick={() => setFilterDirection('ALL')}
             style={{
-              background: '#fff7ed',
+              background: '#eff6ff',
               padding: '12px 8px',
               borderRadius: '12px',
-              border: filterDirection === 'ALL' ? '2px solid #ea580c' : '1px solid #fed7aa',
+              border: filterDirection === 'ALL' ? '2px solid #2563eb' : '1px solid #bfdbfe',
               cursor: 'pointer',
-              boxShadow: filterDirection === 'ALL' ? '0 0 0 3px rgba(234, 88, 12, 0.2)' : 'none',
+              boxShadow: filterDirection === 'ALL' ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : 'none',
               transition: 'all 0.2s ease'
             }}
           >
-            <div style={{ fontSize: '10px', fontWeight: '800', color: '#c2410c' }}>REMAINING</div>
-            <div style={{ fontSize: '16px', fontWeight: '800', color: '#9a3412', marginTop: '2px' }}>
+            <div style={{ fontSize: '10px', fontWeight: '800', color: '#2563eb' }}>REMAINING</div>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#1e40af', marginTop: '2px' }}>
               {balance.toFixed(3)} {unitLabel}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 4. Prominent + Add Entry Button (Directly Below Summary Card) */}
+      {/* 4. Prominent + Add Entry Button */}
       <button
         onClick={() => onOpenAddModal(selectedCategory)}
         style={{
@@ -202,33 +243,56 @@ export default function MaterialListTab({
           alignItems: 'center',
           justifyContent: 'center',
           gap: '8px',
-          boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)',
-          transition: 'transform 0.1s ease'
+          boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)'
         }}
       >
         <Plus size={20} /> Add New {selectedCategory.toUpperCase()} Entry
       </button>
 
-      {/* 5. Filtered Material Entry List */}
+      {/* 5. Filtered Material Entry List + Advanced Filter Action */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
             {selectedCategory.toUpperCase()} Transactions ({filteredTransactions.length})
           </h3>
-          {filterDirection !== 'ALL' && (
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button
-              onClick={() => setFilterDirection('ALL')}
-              style={{ background: 'none', border: 'none', color: '#d97706', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+              onClick={() => setIsFilterModalOpen(true)}
+              style={{
+                background: hasActiveAdvancedFilters ? '#fef3c7' : '#ffffff',
+                border: hasActiveAdvancedFilters ? '1px solid #d97706' : '1px solid #e2e8f0',
+                color: hasActiveAdvancedFilters ? '#b45309' : '#475569',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
             >
-              Clear Filter (Show All)
+              <SlidersHorizontal size={14} /> 
+              {hasActiveAdvancedFilters ? 'Filtered' : 'Filter Options'}
             </button>
-          )}
+
+            {hasActiveAdvancedFilters && (
+              <button
+                onClick={handleResetFilters}
+                title="Reset Filters"
+                style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filteredTransactions.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '30px', background: '#ffffff', borderRadius: '14px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-              No {filterDirection !== 'ALL' ? filterDirection : ''} {selectedCategory} entries found.
+              No {selectedCategory} entries match the selected filters.
             </div>
           ) : (
             filteredTransactions.map(entry => {
@@ -251,12 +315,13 @@ export default function MaterialListTab({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {/* Icon: IN = Green, OUT = RED */}
                     <div style={{
                       width: '44px',
                       height: '44px',
                       borderRadius: '10px',
-                      background: isInward ? '#dcfce7' : '#dbeafe',
-                      color: isInward ? '#15803d' : '#1d4ed8',
+                      background: isInward ? '#dcfce7' : '#fef2f2',
+                      color: isInward ? '#15803d' : '#dc2626',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
@@ -271,8 +336,8 @@ export default function MaterialListTab({
                           fontWeight: '800',
                           padding: '2px 6px',
                           borderRadius: '4px',
-                          background: isInward ? '#dcfce7' : '#dbeafe',
-                          color: isInward ? '#15803d' : '#1d4ed8'
+                          background: isInward ? '#dcfce7' : '#fef2f2',
+                          color: isInward ? '#15803d' : '#dc2626'
                         }}>
                           {entry.direction}
                         </span>
@@ -299,7 +364,90 @@ export default function MaterialListTab({
         </div>
       </div>
 
-      {/* 6. Entry Detail Pop-up / Modal */}
+      {/* 6. Advanced Filter Options Modal */}
+      {isFilterModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1200,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div className="glass-card" style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '440px',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
+                Filter Transactions
+              </h3>
+              <button onClick={() => setIsFilterModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={22} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>VENDOR / KARIGAR NAME</label>
+                <input
+                  type="text"
+                  placeholder="Filter by vendor or Karigar name..."
+                  value={filterVendor}
+                  onChange={(e) => setFilterVendor(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '4px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {selectedCategory === 'gold' && (
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>PURITY STANDARD</label>
+                  <select
+                    value={filterPurity}
+                    onChange={(e) => setFilterPurity(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '4px', boxSizing: 'border-box' }}
+                  >
+                    <option value="">All Purities</option>
+                    <option value="24K - 995">24K - 995</option>
+                    <option value="24K - 999">24K - 999</option>
+                    <option value="22K - 916">22K - 916</option>
+                    <option value="18K - 750">18K - 750</option>
+                  </select>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleResetFilters();
+                    setIsFilterModalOpen(false);
+                  }}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#d97706', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Entry Detail Pop-up Modal */}
       {selectedEntry && (
         <div style={{
           position: 'fixed',
@@ -327,8 +475,8 @@ export default function MaterialListTab({
                   fontWeight: '800',
                   padding: '3px 8px',
                   borderRadius: '6px',
-                  background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#dbeafe',
-                  color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#1d4ed8'
+                  background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
+                  color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626'
                 }}>
                   {selectedEntry.direction} ENTRY
                 </span>
