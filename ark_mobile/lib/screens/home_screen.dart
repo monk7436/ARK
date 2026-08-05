@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
               
               // 1. COMPACT TOP COMPANY HEADER (30-40% Height Reduction)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -75,12 +75,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           radius: 18,
                           child: const Text('A', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: const [
-                            Text('ark labs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textMain)),
-                            Text('Rahul', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                            Text('ark labs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain)),
+                            Text('Rahul', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
                           ],
                         ),
                       ],
@@ -90,10 +90,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     GestureDetector(
                       onTap: () => _showStoreDropdownSheet(context),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
                           color: AppTheme.bgPrimary,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: AppTheme.borderSubtle),
                         ),
                         child: Row(
@@ -105,10 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(width: 6),
                             Text(
                               _activeStoreName,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textMain),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.textMain),
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.keyboard_arrow_down, size: 16, color: AppTheme.textMuted),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.keyboard_arrow_down, size: 14, color: AppTheme.textMuted),
                           ],
                         ),
                       ),
@@ -118,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppTheme.bgPrimary,
                             borderRadius: BorderRadius.circular(6),
@@ -128,8 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 4),
                         IconButton(
                           constraints: const BoxConstraints(),
-                          padding: const EdgeInsets.all(6),
-                          icon: const Icon(Icons.people_outline, color: AppTheme.textMain, size: 20),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.people_outline, color: AppTheme.textMain, size: 18),
                           onPressed: () => Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => TeamManagementScreen(storeName: _activeStoreName)),
@@ -141,23 +141,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // 2. GLOBAL UNIVERSAL SEARCH BAR
               TextField(
                 onChanged: (val) => setState(() => _searchQuery = val),
                 decoration: InputDecoration(
                   hintText: 'Search customers, jewellery, manufacturers, transactions...',
-                  hintStyle: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
-                  prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted, size: 20),
+                  hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted, size: 18),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // 3. CLEAN 2x2 QUICK ACTION GRID
               GridView.count(
@@ -165,8 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: 2,
                 childAspectRatio: 1.4,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
                 children: [
                   // Card 1: Material
                   _buildActionCard(
@@ -218,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
               // 4. RECENT ACTIVITY LOGS SECTION
               Row(
@@ -226,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text('Recent Activity Logs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                   
-                  // Filter ChoiceChips
+                  // Filter Pills
                   Row(
                     children: ['ALL', 'INWARD', 'OUTWARD'].map((filter) {
                       final isSelected = _activeFilter == filter;
@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: isSelected ? const Color(0xFFFEF3C7) : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: isSelected ? AppTheme.goldDark : AppTheme.borderSubtle),
                             ),
                             child: Text(
@@ -333,14 +333,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppTheme.borderSubtle),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(0, 1))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,13 +350,13 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
-                  child: Icon(icon, color: iconColor, size: 20),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)),
+                  child: Icon(icon, color: iconColor, size: 18),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)),
                   child: Text(badgeText, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: iconColor)),
                 ),
               ],
@@ -364,8 +364,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain), maxLines: 1),
-                Text(subtitle, style: const TextStyle(fontSize: 10, color: AppTheme.textMuted), maxLines: 1),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain), maxLines: 1),
+                Text(subtitle, style: const TextStyle(fontSize: 9.5, color: AppTheme.textMuted), maxLines: 1),
               ],
             ),
           ],
