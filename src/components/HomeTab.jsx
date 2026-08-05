@@ -11,8 +11,11 @@ import {
   X,
   Calendar,
   Tag,
-  User
+  User,
+  Building2
 } from 'lucide-react';
+import StoreDropdownModal from './StoreDropdownModal';
+import TeamManagementModal from './TeamManagementModal';
 
 export default function HomeTab({ 
   companyInfo, 
@@ -27,6 +30,31 @@ export default function HomeTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [selectedEntry, setSelectedEntry] = useState(null); // Universal detail pop-up modal
+
+  // Stores State
+  const [activeStoreName, setActiveStoreName] = useState(companyInfo.activeStore || 'Sahyadri Tower Store');
+  const [stores, setStores] = useState([
+    { id: 's-1', name: 'Sahyadri Tower Store', city: 'Mumbai', isDefault: true },
+    { id: 's-2', name: 'Zaveri Bazaar Main Vault', city: 'Mumbai', isDefault: false },
+    { id: 's-3', name: 'Surat Diamond Hub', city: 'Surat', isDefault: false }
+  ]);
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+
+  // Team Members State
+  const [teamMembers, setTeamMembers] = useState([
+    { id: 'tm-1', name: 'Rahul (You)', phone: '+91 98765 43210', role: 'Owner', access: 'Admin', avatar: 'R' },
+    { id: 'tm-2', name: 'Amit Sharma', phone: '+91 98111 22334', role: 'Counter Sales', access: 'Sales Access', avatar: 'A' },
+    { id: 'tm-3', name: 'Pooja Verma', phone: '+91 98222 33445', role: 'Vault Operator', access: 'Vault In/Out', avatar: 'P' }
+  ]);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+
+  const handleAddStore = (newStore) => {
+    setStores(prev => [...prev, newStore]);
+  };
+
+  const handleAddTeamMember = (newMember) => {
+    setTeamMembers(prev => [...prev, newMember]);
+  };
 
   // Filter materials and entries
   const filteredEntries = materials.filter(m => {
@@ -45,7 +73,7 @@ export default function HomeTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* 1. Control App Style Top Company & Store Header Card */}
+      {/* 1. Top Company & Interactive Store Header Card */}
       <div style={{
         position: 'relative',
         borderRadius: '20px',
@@ -94,9 +122,10 @@ export default function HomeTab({
               fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px'
             }}>EN</span>
 
+            {/* Team Management Icon */}
             <button
-              onClick={onOpenStaffModal}
-              title="Staff Management"
+              onClick={() => setIsTeamModalOpen(true)}
+              title="Team Management"
               style={{
                 background: 'rgba(255, 255, 255, 0.15)',
                 border: 'none', color: '#ffffff',
@@ -109,23 +138,27 @@ export default function HomeTab({
           </div>
         </div>
 
-        {/* Store Location Card Dropdown */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.08)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '14px',
-          padding: '14px 16px',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          position: 'relative', zIndex: 2
-        }}>
+        {/* Interactive Store Location Card Dropdown */}
+        <div 
+          onClick={() => setIsStoreModalOpen(true)}
+          style={{
+            background: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '14px',
+            padding: '14px 16px',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            position: 'relative', zIndex: 2,
+            cursor: 'pointer'
+          }}
+        >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: '#34d399', fontWeight: '700', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>
               ACTIVE STORE
             </div>
             <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#ffffff' }}>
-              {companyInfo.activeStore || 'Sahyadri Tower Store'}
+              {activeStoreName}
             </h3>
           </div>
           <button style={{
@@ -292,8 +325,8 @@ export default function HomeTab({
                   ) : (
                     <div style={{
                       width: '48px', height: '48px', borderRadius: '10px',
-                      background: entry.direction === 'INWARD' ? '#dcfce7' : '#dbeafe',
-                      color: entry.direction === 'INWARD' ? '#15803d' : '#1d4ed8',
+                      background: entry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
+                      color: entry.direction === 'INWARD' ? '#15803d' : '#dc2626',
                       display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
                       {entry.direction === 'INWARD' ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
@@ -304,8 +337,8 @@ export default function HomeTab({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{
                         fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
-                        background: entry.direction === 'INWARD' ? '#dcfce7' : '#dbeafe',
-                        color: entry.direction === 'INWARD' ? '#15803d' : '#1d4ed8'
+                        background: entry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
+                        color: entry.direction === 'INWARD' ? '#15803d' : '#dc2626'
                       }}>
                         {entry.direction}
                       </span>
@@ -352,8 +385,8 @@ export default function HomeTab({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{
                   fontSize: '11px', fontWeight: '800', padding: '3px 8px', borderRadius: '6px',
-                  background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#dbeafe',
-                  color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#1d4ed8'
+                  background: selectedEntry.direction === 'INWARD' ? '#dcfce7' : '#fef2f2',
+                  color: selectedEntry.direction === 'INWARD' ? '#15803d' : '#dc2626'
                 }}>
                   {selectedEntry.direction} ENTRY
                 </span>
@@ -426,6 +459,25 @@ export default function HomeTab({
           </div>
         </div>
       )}
+
+      {/* Store Dropdown & Switcher Modal */}
+      <StoreDropdownModal
+        isOpen={isStoreModalOpen}
+        onClose={() => setIsStoreModalOpen(false)}
+        stores={stores}
+        activeStoreName={activeStoreName}
+        onSelectStore={(name) => setActiveStoreName(name)}
+        onAddStore={handleAddStore}
+      />
+
+      {/* Team Management Modal */}
+      <TeamManagementModal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        storeName={activeStoreName}
+        teamMembers={teamMembers}
+        onAddTeamMember={handleAddTeamMember}
+      />
 
     </div>
   );
