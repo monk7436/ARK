@@ -1,33 +1,73 @@
 class MaterialEntry {
   final String id;
-  final String timestamp;
-  final String direction; // INWARD or OUTWARD
   final String materialType; // gold, diamond, gemstone
-  final double weight; // Grams for gold, Carats for diamond/gemstone
-  final String? purity; // e.g. "995 (24K)"
-  final String? size; // e.g. "2.5 mm"
-  final String vendorName;
+  final String direction;    // INWARD, OUTWARD
+  final double weight;
+  final String? purity;
+  final String? size;
   final String? manufacturerId;
+  final String? productType;
+  final String vendorName;
   final double price;
   final double totalAmount;
-  final String? productType; // Ring, Necklace, Bangle, etc.
+  final String timestamp;
   final String? photoUrl;
+  final String? notes;
 
   MaterialEntry({
     required this.id,
-    required this.timestamp,
-    required this.direction,
     required this.materialType,
+    required this.direction,
     required this.weight,
     this.purity,
     this.size,
-    required this.vendorName,
     this.manufacturerId,
+    this.productType,
+    required this.vendorName,
     required this.price,
     required this.totalAmount,
-    this.productType,
+    required this.timestamp,
     this.photoUrl,
+    this.notes,
   });
+
+  factory MaterialEntry.fromJson(Map<String, dynamic> json) {
+    return MaterialEntry(
+      id: json['_id'] ?? json['id'] ?? '',
+      materialType: json['material_type'] ?? json['materialType'] ?? 'gold',
+      direction: json['direction'] ?? 'INWARD',
+      weight: (json['weight'] as num?)?.toDouble() ?? 0.0,
+      purity: json['purity'],
+      size: json['size'],
+      manufacturerId: json['manufacturer_id'] ?? json['manufacturerId'],
+      productType: json['product_type'] ?? json['productType'],
+      vendorName: json['vendor_name'] ?? json['vendorName'] ?? 'Unknown Vendor',
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? (json['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      timestamp: json['timestamp'] ?? json['created_at'] ?? '',
+      photoUrl: json['photo_url'] ?? json['photoUrl'],
+      notes: json['notes'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'material_type': materialType,
+      'direction': direction,
+      'weight': weight,
+      'purity': purity,
+      'size': size,
+      'manufacturer_id': manufacturerId,
+      'product_type': productType,
+      'vendor_name': vendorName,
+      'price': price,
+      'total_amount': totalAmount,
+      'timestamp': timestamp,
+      'photo_url': photoUrl,
+      'notes': notes,
+    };
+  }
 }
 
 class Manufacturer {
@@ -37,8 +77,8 @@ class Manufacturer {
   final String photoUrl;
   final int jobsDone;
   final int jobsOngoing;
-  final double goldRemaining; // 24K fine gold balance held in grams
-  final double makingCharge; // Rate per gram
+  final double goldRemaining;
+  final double makingCharge;
 
   Manufacturer({
     required this.id,

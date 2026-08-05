@@ -244,7 +244,7 @@ class _MaterialListScreenState extends State<MaterialListScreen> {
                       initialDirection: 'INWARD',
                       initialCategory: _selectedCategory,
                       manufacturers: appState.manufacturers,
-                      onSubmit: (entry) => appState.addMaterial(entry),
+                      onSubmit: (entry) => appState.addMaterialEntry(entry),
                     ),
                   );
                 },

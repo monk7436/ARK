@@ -17,87 +17,93 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final materials = appState.materials;
 
-    // Calculate Balances
-    double goldIn = materials.where((m) => m.materialType == 'gold' && m.direction == 'INWARD').fold(0, (a, b) => a + b.weight);
-    double goldOut = materials.where((m) => m.materialType == 'gold' && m.direction == 'OUTWARD').fold(0, (a, b) => a + b.weight);
-    double goldNet = goldIn - goldOut;
+    final filteredList = appState.materials.where((m) {
+      return m.materialType.toLowerCase() == selectedCat.toLowerCase();
+    }).toList();
 
-    double diamondIn = materials.where((m) => m.materialType == 'diamond' && m.direction == 'INWARD').fold(0, (a, b) => a + b.weight);
-    double diamondOut = materials.where((m) => m.materialType == 'diamond' && m.direction == 'OUTWARD').fold(0, (a, b) => a + b.weight);
-    double diamondNet = diamondIn - diamondOut;
+    double totalInGrams = filteredList
+        .where((m) => m.direction == 'INWARD')
+        .fold(0.0, (sum, m) => sum + m.weight);
 
-    double gemstoneIn = materials.where((m) => m.materialType == 'gemstone' && m.direction == 'INWARD').fold(0, (a, b) => a + b.weight);
-    double gemstoneOut = materials.where((m) => m.materialType == 'gemstone' && m.direction == 'OUTWARD').fold(0, (a, b) => a + b.weight);
-    double gemstoneNet = gemstoneIn - gemstoneOut;
+    double totalOutGrams = filteredList
+        .where((m) => m.direction == 'OUTWARD')
+        .fold(0.0, (sum, m) => sum + m.weight);
 
-    final filteredList = materials.where((m) => m.materialType == selectedCat).toList();
+    double remainingGrams = totalInGrams - totalOutGrams;
 
     return Scaffold(
+      backgroundColor: AppTheme.bgPrimary,
+      appBar: AppBar(
+        title: const Text('Material Vault & Balances', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textMain)),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textMain),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // KPI Stat Cards horizontal scroll
+            // Category Tabs
+            Row(
+              children: ['gold', 'diamond', 'gemstone'].map((cat) {
+                final isSelected = selectedCat == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ChoiceChip(
+                    label: Text(cat.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isSelected ? Colors.white : AppTheme.textMuted)),
+                    selected: isSelected,
+                    selectedColor: AppTheme.goldDark,
+                    onSelected: (val) => setState(() => selectedCat = cat),
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Live Vault Balance Cards
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildVaultCard('24K GOLD (995)', '${goldNet.toStringAsFixed(3)} g', 'In: +${goldIn.toStringAsFixed(1)} | Out: -${goldOut.toStringAsFixed(1)}', AppTheme.goldPrimary),
-                  const SizedBox(width: 12),
-                  _buildVaultCard('DIAMOND VAULT', '${diamondNet.toStringAsFixed(2)} CTS', 'In: +${diamondIn.toStringAsFixed(1)} | Out: -${diamondOut.toStringAsFixed(1)}', const Color(0xFF38BDF8)),
-                  const SizedBox(width: 12),
-                  _buildVaultCard('GEMSTONE VAULT', '${gemstoneNet.toStringAsFixed(2)} CTS', 'In: +${gemstoneIn.toStringAsFixed(1)} | Out: -${gemstoneOut.toStringAsFixed(1)}', const Color(0xFFA855F7)),
+                  _buildVaultCard('TOTAL INWARD', '${totalInGrams.toStringAsFixed(3)} g', 'Store Intake', AppTheme.inwardGreen),
+                  const SizedBox(width: 10),
+                  _buildVaultCard('TOTAL OUTWARD', '${totalOutGrams.toStringAsFixed(3)} g', 'Issued Karigars', AppTheme.outwardRose),
+                  const SizedBox(width: 10),
+                  _buildVaultCard('NET REMAINING', '${remainingGrams.toStringAsFixed(3)} g', 'Vault Balance', AppTheme.goldPrimary),
                 ],
               ),
             ),
+
             const SizedBox(height: 20),
 
-            // Material Category Selector & Record Button
+            // Transaction Header & Add Entry Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: ['gold', 'diamond', 'gemstone'].map((cat) {
-                    final isSel = selectedCat == cat;
-                    return GestureDetector(
-                      onTap: () => setState(() => selectedCat = cat),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSel ? AppTheme.goldPrimary : AppTheme.bgCard,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          cat.toUpperCase(),
-                          style: TextStyle(
-                            color: isSel ? Colors.black : AppTheme.textMuted,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-
+                const Text('Material History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.goldPrimary,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Record Entry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  label: const Text('+ Add New Entry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   onPressed: () {
-                    showModalBottomSheet(
+                    showDialog(
                       context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => MaterialModalBottomSheet(defaultCategory: selectedCat),
+                      builder: (ctx) => MaterialModal(
+                        initialDirection: 'INWARD',
+                        initialCategory: selectedCat,
+                        manufacturers: appState.manufacturers,
+                        onSubmit: (entry) => appState.addMaterialEntry(entry),
+                      ),
                     );
                   },
                 ),
@@ -155,20 +161,6 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                                 '${m.vendorName} • ${m.timestamp}',
                                 style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
                               ),
-                              if (m.productType != null) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.goldGlow,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    'Product: ${m.productType}',
-                                    style: const TextStyle(fontSize: 10, color: AppTheme.goldPrimary, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ),
@@ -189,7 +181,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
       width: 170,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.4)),
       ),
@@ -200,7 +192,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
           const SizedBox(height: 4),
           Text(mainValue, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
           const SizedBox(height: 4),
-          Text(subValue, style: const TextStyle(fontSize: 10, color: AppTheme.textDim)),
+          Text(subValue, style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
         ],
       ),
     );
