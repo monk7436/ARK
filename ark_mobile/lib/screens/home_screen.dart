@@ -144,23 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 14),
 
-              // 2. GLOBAL UNIVERSAL SEARCH BAR
-              TextField(
-                onChanged: (val) => setState(() => _searchQuery = val),
-                decoration: InputDecoration(
-                  hintText: 'Search customers, jewellery, manufacturers, transactions...',
-                  hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
-                  prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted, size: 18),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // 3. CLEAN 2x2 QUICK ACTION GRID
+              // 2. QUICK ACTIONS GRID (DIRECTLY BELOW COMPACT HEADER)
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -219,13 +203,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
 
+              const SizedBox(height: 14),
+
+              // 3. GLOBAL UNIVERSAL SEARCH BAR (IMMEDIATELY BELOW QUICK ACTIONS)
+              TextField(
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: 'Search customers, jewellery, manufacturers, products, transactions...',
+                  hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted, size: 18),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
+                ),
+              ),
+
               const SizedBox(height: 18),
 
-              // 4. RECENT ACTIVITY LOGS SECTION
+              // 4. RECENT TRANSACTIONS (EXACTLY BELOW GLOBAL SEARCH)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Recent Activity Logs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
+                  const Text('Recent Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                   
                   // Filter Pills
                   Row(
@@ -316,8 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
 
-            ],
-          ),
+          ],
         ),
       ),
     );

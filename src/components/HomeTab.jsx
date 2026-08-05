@@ -85,7 +85,7 @@ export default function HomeTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: '#0f172a' }}>
       
-      {/* 1. COMPACT TOP COMPANY HEADER (30-40% Height Reduction) */}
+      {/* 1. COMPACT TOP COMPANY HEADER */}
       <div style={{
         background: '#ffffff',
         borderRadius: '16px',
@@ -174,8 +174,7 @@ export default function HomeTab({
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              color: '#0f172a',
-              transition: 'background 0.15s ease'
+              color: '#0f172a'
             }}
           >
             <Users size={17} />
@@ -183,7 +182,140 @@ export default function HomeTab({
         </div>
       </div>
 
-      {/* 2. GLOBAL UNIVERSAL SEARCH BAR */}
+      {/* 2. QUICK ACTIONS GRID (DIRECTLY BELOW COMPACT HEADER) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        
+        {/* Card 1: Material */}
+        <div 
+          onClick={() => onOpenMaterialModal('inward')}
+          className="glass-card clickable-card" 
+          style={{
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#fef3c7', color: '#b45309', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Layers size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: '999px' }}>
+              {materials.length} Entries
+            </span>
+          </div>
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Material</h4>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Vault In & Issue Out</p>
+          </div>
+        </div>
+
+        {/* Card 2: Jobs */}
+        <div 
+          onClick={onOpenManufacturersModal}
+          className="glass-card clickable-card" 
+          style={{
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Hammer size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '999px' }}>
+              3 Active Jobs
+            </span>
+          </div>
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Jobs</h4>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Manufacturing Work</p>
+          </div>
+        </div>
+
+        {/* Card 3: Manufacturer */}
+        <div 
+          onClick={onOpenManufacturersModal}
+          className="glass-card clickable-card" 
+          style={{
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#faf5ff', color: '#9333ea', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Briefcase size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#faf5ff', color: '#9333ea', padding: '2px 8px', borderRadius: '999px' }}>
+              {manufacturers.length} Karigars
+            </span>
+          </div>
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Manufacturer</h4>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Karigars & Balances</p>
+          </div>
+        </div>
+
+        {/* Card 4: Customers */}
+        <div 
+          onClick={onOpenCustomersModal}
+          className="glass-card clickable-card" 
+          style={{
+            padding: '16px',
+            borderRadius: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '12px',
+            cursor: 'pointer',
+            minHeight: '100px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ background: '#fff7ed', color: '#ea580c', padding: '10px', borderRadius: '12px', display: 'flex' }}>
+              <Users size={22} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '800', background: '#fff7ed', color: '#ea580c', padding: '2px 8px', borderRadius: '999px' }}>
+              {customers.length} Accounts
+            </span>
+          </div>
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Customers</h4>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Shops & Invoices</p>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 3. GLOBAL SEARCH (IMMEDIATELY BELOW QUICK ACTIONS) */}
       <div style={{ position: 'relative' }}>
         <Search 
           size={18} 
@@ -192,7 +324,7 @@ export default function HomeTab({
         />
         <input
           type="text"
-          placeholder="Search customers, jewellery, manufacturers, transactions, products..."
+          placeholder="Search customers, jewellery, manufacturers, products, transactions..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
@@ -222,140 +354,11 @@ export default function HomeTab({
         )}
       </div>
 
-      {/* 3. CLEAN 2x2 QUICK ACTION GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        
-        {/* Card 1: Material (Vault In & Out) */}
-        <div 
-          onClick={() => onOpenMaterialModal('inward')}
-          className="glass-card clickable-card" 
-          style={{
-            padding: '16px',
-            borderRadius: '16px',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '12px',
-            cursor: 'pointer',
-            minHeight: '100px'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ background: '#fef3c7', color: '#b45309', padding: '10px', borderRadius: '12px', display: 'flex' }}>
-              <Layers size={22} />
-            </div>
-            <span style={{ fontSize: '10px', fontWeight: '800', background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: '999px' }}>
-              {materials.length} Entries
-            </span>
-          </div>
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Material</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Vault In & Issue Out</p>
-          </div>
-        </div>
-
-        {/* Card 2: Jobs (Manufacturing Work) */}
-        <div 
-          onClick={onOpenManufacturersModal}
-          className="glass-card clickable-card" 
-          style={{
-            padding: '16px',
-            borderRadius: '16px',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '12px',
-            cursor: 'pointer',
-            minHeight: '100px'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '12px', display: 'flex' }}>
-              <Hammer size={22} />
-            </div>
-            <span style={{ fontSize: '10px', fontWeight: '800', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '999px' }}>
-              3 Active Jobs
-            </span>
-          </div>
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Jobs</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Manufacturing Work</p>
-          </div>
-        </div>
-
-        {/* Card 3: Manufacturer (Karigars & Balances) */}
-        <div 
-          onClick={onOpenManufacturersModal}
-          className="glass-card clickable-card" 
-          style={{
-            padding: '16px',
-            borderRadius: '16px',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '12px',
-            cursor: 'pointer',
-            minHeight: '100px'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ background: '#faf5ff', color: '#9333ea', padding: '10px', borderRadius: '12px', display: 'flex' }}>
-              <Briefcase size={22} />
-            </div>
-            <span style={{ fontSize: '10px', fontWeight: '800', background: '#faf5ff', color: '#9333ea', padding: '2px 8px', borderRadius: '999px' }}>
-              {manufacturers.length} Karigars
-            </span>
-          </div>
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Manufacturer</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Karigars & Balances</p>
-          </div>
-        </div>
-
-        {/* Card 4: Customers (Shops & Invoices) */}
-        <div 
-          onClick={onOpenCustomersModal}
-          className="glass-card clickable-card" 
-          style={{
-            padding: '16px',
-            borderRadius: '16px',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '12px',
-            cursor: 'pointer',
-            minHeight: '100px'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ background: '#fff7ed', color: '#ea580c', padding: '10px', borderRadius: '12px', display: 'flex' }}>
-              <Users size={22} />
-            </div>
-            <span style={{ fontSize: '10px', fontWeight: '800', background: '#fff7ed', color: '#ea580c', padding: '2px 8px', borderRadius: '999px' }}>
-              {customers.length} Accounts
-            </span>
-          </div>
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Customers</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Shops & Invoices</p>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. RECENT ACTIVITY LOGS SECTION */}
-      <div style={{ marginTop: '6px' }}>
+      {/* 4. RECENT TRANSACTIONS (EXACTLY BELOW GLOBAL SEARCH) */}
+      <div style={{ marginTop: '2px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-            Recent Activity Logs
+            Recent Transactions
           </h3>
 
           {/* Filter Pills */}
