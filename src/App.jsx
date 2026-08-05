@@ -1,18 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import NavigationBar from './components/NavigationBar';
-import MaterialsTab from './components/MaterialsTab';
-import ManufacturingTab from './components/ManufacturingTab';
+import HomeTab from './components/HomeTab';
 import InventoryTab from './components/InventoryTab';
+import ProfileTab from './components/ProfileTab';
+import ManufacturingTab from './components/ManufacturingTab';
 import CustomersTab from './components/CustomersTab';
 import MaterialModal from './components/MaterialModal';
-import { Layers, Flame, Wifi, WifiOff } from 'lucide-react';
+import { X } from 'lucide-react';
 import { API } from './api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('materials');
+  const [activeTab, setActiveTab] = useState('home');
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
-  const [modalDefaultCategory, setModalDefaultCategory] = useState('gold');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [modalDefaultDirection, setModalDefaultDirection] = useState('inward');
+  
+  // Modals for Manufacturer and Customer detail views from 4 Home Boxes
+  const [isMfgModalOpen, setIsMfgModalOpen] = useState(false);
+  const [isCustModalOpen, setIsCustModalOpen] = useState(false);
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+
+  // Company Information State (Control App Style)
+  const [companyInfo, setCompanyInfo] = useState({
+    name: 'ark labs',
+    ownerName: 'Rahul',
+    activeStore: 'Sahyadri Tower Store',
+    phone: '+91 98765 43210',
+    gstin: '27AAAAA0000A1Z5'
+  });
 
   // State
   const [materials, setMaterials] = useState([
@@ -73,10 +87,9 @@ export default function App() {
     }
   ]);
 
-  // Load initial data from Live API on mount
+  // Load live data from API on mount
   useEffect(() => {
     async function loadLiveData() {
-      setIsSyncing(true);
       try {
         const matRes = await API.getMaterials();
         if (matRes && matRes.materials && matRes.materials.length > 0) {
@@ -125,18 +138,16 @@ export default function App() {
           })));
         }
       } catch (err) {
-        console.warn("Could not sync initial data with live backend, using local state", err);
-      } finally {
-        setIsSyncing(false);
+        console.warn("Using local state fallback", err);
       }
     }
 
     loadLiveData();
   }, []);
 
-  // Handlers with Live API Sync
-  const handleOpenMaterialModal = (category = 'gold') => {
-    setModalDefaultCategory(category);
+  // Handlers
+  const handleOpenMaterialModal = (dir = 'inward') => {
+    setModalDefaultDirection(dir);
     setIsMaterialModalOpen(true);
   };
 
@@ -154,7 +165,6 @@ export default function App() {
         return m;
       }));
     }
-    // Push to Live API
     await API.createMaterial(newEntry);
   };
 
@@ -166,10 +176,6 @@ export default function App() {
   const handleAddStockItem = async (newItem) => {
     setInventory(prev => [newItem, ...prev]);
     await API.createInventoryItem(newItem);
-  };
-
-  const handleImportExcel = () => {
-    alert("Excel file parsed successfully!");
   };
 
   const handleAddCustomer = async (newCust) => {
@@ -199,51 +205,20 @@ export default function App() {
   };
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 16px 80px 16px' }}>
-      {/* Top Header Shell */}
-      <header className="glass-card gold-border" style={{ padding: '16px 20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ background: '#d97706', padding: '10px', borderRadius: '10px', color: '#ffffff' }}>
-            <Layers size={22} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '0.5px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              ARK <span style={{ fontSize: '11px', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '999px', border: '1px solid #fde68a' }}>JEWELRY SOFTWARE</span>
-            </h1>
-            <p style={{ fontSize: '12px', color: '#64748b' }}>Store Inventory • Material Vault • Karigar & Customer Management</p>
-          </div>
-        </div>
-
-        {/* Live Rate Ticker & Sync Status */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: '#f8fafc', padding: '8px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#b45309' }}>
-              <Flame size={14} color="#d97706" /> Live 24K Gold: ₹7,200/g
-            </div>
-            <div style={{ fontSize: '12px', color: '#475569' }}>22K: ₹6,850/g</div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '600', color: isSyncing ? '#d97706' : '#15803d', background: '#f0fdf4', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-            <Wifi size={14} /> {isSyncing ? 'Syncing...' : 'Neon DB Connected'}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Active Tab Renderer */}
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 16px 90px 16px' }}>
+      
+      {/* 3 Main Bottom Tabs */}
       <main>
-        {activeTab === 'materials' && (
-          <MaterialsTab
+        {activeTab === 'home' && (
+          <HomeTab
+            companyInfo={companyInfo}
             materials={materials}
-            onOpenModal={handleOpenMaterialModal}
             manufacturers={manufacturers}
-          />
-        )}
-
-        {activeTab === 'manufacturing' && (
-          <ManufacturingTab
-            manufacturers={manufacturers}
-            onAddManufacturer={handleAddManufacturer}
-            materials={materials}
+            customers={customers}
+            onOpenMaterialModal={(dir) => handleOpenMaterialModal(dir)}
+            onOpenManufacturersModal={() => setIsMfgModalOpen(true)}
+            onOpenCustomersModal={() => setIsCustModalOpen(true)}
+            onOpenStaffModal={() => setIsStaffModalOpen(true)}
           />
         )}
 
@@ -251,28 +226,137 @@ export default function App() {
           <InventoryTab
             inventory={inventory}
             onAddStockItem={handleAddStockItem}
-            onImportExcel={handleImportExcel}
+            onImportExcel={() => alert("Excel imported!")}
           />
         )}
 
-        {activeTab === 'customers' && (
-          <CustomersTab
-            inventory={inventory}
-            customers={customers}
-            onAddCustomer={handleAddCustomer}
-            onAssignProductToCustomer={handleAssignProductToCustomer}
+        {activeTab === 'profile' && (
+          <ProfileTab
+            companyInfo={companyInfo}
+            onUpdateCompanyInfo={(info) => setCompanyInfo(info)}
           />
         )}
       </main>
 
+      {/* Shared Material Inward/Outward Modal */}
       <MaterialModal
         isOpen={isMaterialModalOpen}
         onClose={() => setIsMaterialModalOpen(false)}
         onSubmit={handleAddMaterialSubmit}
-        defaultCategory={modalDefaultCategory}
+        defaultCategory={modalDefaultDirection === 'outward' ? 'gold' : 'gold'}
         manufacturers={manufacturers}
       />
 
+      {/* Manufacturer Modal / Overlay */}
+      {isMfgModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-end'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            width: '100%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderTopLeftRadius: '24px',
+            borderTopRightRadius: '24px',
+            padding: '24px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Karigars & Manufacturers</h3>
+              <button onClick={() => setIsMfgModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button>
+            </div>
+            <ManufacturingTab
+              manufacturers={manufacturers}
+              onAddManufacturer={handleAddManufacturer}
+              materials={materials}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Customers Modal / Overlay */}
+      {isCustModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-end'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            width: '100%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderTopLeftRadius: '24px',
+            borderTopRightRadius: '24px',
+            padding: '24px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Customers & Invoicing</h3>
+              <button onClick={() => setIsCustModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button>
+            </div>
+            <CustomersTab
+              inventory={inventory}
+              customers={customers}
+              onAddCustomer={handleAddCustomer}
+              onAssignProductToCustomer={handleAssignProductToCustomer}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Staff Management Overlay */}
+      {isStaffModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '20px'
+        }}>
+          <div className="glass-card" style={{
+            background: '#ffffff',
+            padding: '24px',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '440px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Staff Management</h3>
+              <button onClick={() => setIsStaffModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={22} /></button>
+            </div>
+            <p style={{ fontSize: '13px', color: '#64748b' }}>Manage counter staff permissions and active site operators.</p>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: '13px', color: '#0f172a' }}>{companyInfo.ownerName} (You)</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Full Admin Access</div>
+                </div>
+                <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '999px', fontWeight: '800' }}>OWNER</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3 Tab Navigation Bar */}
       <NavigationBar activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
