@@ -246,10 +246,10 @@ class _JobModalState extends State<JobModal> {
 
               if (!isEditing) ...[
                 DropdownButtonFormField<String>(
-                  value: _selectedManufacturerId,
+                  initialValue: _selectedManufacturerId,
                   decoration: const InputDecoration(labelText: 'ASSIGNED KARIGAR'),
                   items: widget.manufacturers.map((m) {
-                    return DropdownMenuItem<String>(value: m.id, child: Text('${m.name} (${m.office})'));
+                    return DropdownMenuItem<String>(value: m.id as String, child: Text('${m.name} (${m.office})'));
                   }).toList(),
                   onChanged: (val) => setState(() => _selectedManufacturerId = val),
                 ),
@@ -283,7 +283,7 @@ class _JobModalState extends State<JobModal> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _goldPurity,
+                            initialValue: _goldPurity,
                             decoration: const InputDecoration(labelText: 'PURITY'),
                             items: _goldPurityOptions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                             onChanged: (val) => setState(() => _goldPurity = val!),
@@ -307,16 +307,14 @@ class _JobModalState extends State<JobModal> {
                     Text('DIAMOND ISSUED (${_diamondRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
                     const SizedBox(height: 8),
 
-                    ..._diamondRows.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final row = entry.value;
-                      return Padding(
+                    for (int idx = 0; idx < _diamondRows.length; idx++)
+                      Padding(
                         padding: const EdgeInsets.only(bottom: 8.0),
                         child: Row(
                           children: [
                             Expanded(
                               child: TextFormField(
-                                controller: row['weight'],
+                                controller: _diamondRows[idx]['weight'],
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
                               ),
@@ -324,7 +322,7 @@ class _JobModalState extends State<JobModal> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
-                                controller: row['size'],
+                                controller: _diamondRows[idx]['size'],
                                 decoration: const InputDecoration(labelText: 'Size', hintText: '0.10 ct'),
                               ),
                             ),
@@ -335,8 +333,7 @@ class _JobModalState extends State<JobModal> {
                               ),
                           ],
                         ),
-                      );
-                    }).toList(),
+                      ),
 
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
@@ -360,16 +357,14 @@ class _JobModalState extends State<JobModal> {
                     Text('GEMSTONE ISSUED (${_gemstoneRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
                     const SizedBox(height: 8),
 
-                    ..._gemstoneRows.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final row = entry.value;
-                      return Padding(
+                    for (int idx = 0; idx < _gemstoneRows.length; idx++)
+                      Padding(
                         padding: const EdgeInsets.only(bottom: 8.0),
                         child: Row(
                           children: [
                             Expanded(
                               child: TextFormField(
-                                controller: row['weight'],
+                                controller: _gemstoneRows[idx]['weight'],
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
                               ),
@@ -377,7 +372,7 @@ class _JobModalState extends State<JobModal> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
-                                controller: row['size'],
+                                controller: _gemstoneRows[idx]['size'],
                                 decoration: const InputDecoration(labelText: 'Size', hintText: '5x7 mm'),
                               ),
                             ),
@@ -388,8 +383,7 @@ class _JobModalState extends State<JobModal> {
                               ),
                           ],
                         ),
-                      );
-                    }).toList(),
+                      ),
 
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
