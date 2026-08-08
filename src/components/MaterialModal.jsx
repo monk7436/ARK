@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Camera, Image as ImageIcon, Plus, Calendar, Trash2 } from 'lucide-react';
+import { X, Camera, Image as ImageIcon, Plus, Calendar } from 'lucide-react';
+import DiamondItemInput from './DiamondItemInput';
 
 export default function MaterialModal({ 
   isOpen, 
@@ -21,9 +22,9 @@ export default function MaterialModal({
   // 3. Gold Specific Fields State
   const [purity, setPurity] = useState('24K');
 
-  // 4. Independent Child Items for Diamond & Gemstone Inward/Outward Entries
+  // 4. Structured Independent Child Items for Diamond & Gemstone Inward/Outward Entries
   const [diamondItems, setDiamondItems] = useState([
-    { id: 'd-item-1', parentId: null, weight: '', size: '' }
+    { id: 'd-item-1', parentId: null, weight: '', sizeMm: 2.5, shape: 'Round', customShape: '' }
   ]);
   const [gemstoneItems, setGemstoneItems] = useState([
     { id: 'g-item-1', parentId: null, weight: '', size: '', stoneType: 'Gemstone' }
@@ -68,7 +69,7 @@ export default function MaterialModal({
   const handleAddDiamondItem = () => {
     setDiamondItems(prev => [
       ...prev, 
-      { id: 'd-item-' + Date.now() + Math.random().toString(36).substring(2, 5), parentId: null, weight: '', size: '' }
+      { id: 'd-item-' + Date.now() + Math.random().toString(36).substring(2, 5), parentId: null, weight: '', sizeMm: 2.5, shape: 'Round', customShape: '' }
     ]);
   };
   const handleRemoveDiamondItem = (id) => { 
@@ -141,13 +142,16 @@ export default function MaterialModal({
 
     const parentId = 'tx-' + Date.now();
 
-    // Map independent child items linked with parentId
+    // Map structured independent diamond items
     const finalDiamondItems = materialType === 'diamond' 
-      ? diamondItems.filter(r => r.weight || r.size).map(r => ({
+      ? diamondItems.filter(r => (parseFloat(r.weight) || 0) > 0).map(r => ({
           id: r.id,
           parentId,
           weight: parseFloat(r.weight) || 0,
-          size: r.size || 'Standard'
+          weightCt: parseFloat(r.weight) || 0,
+          sizeMm: parseFloat(r.sizeMm || 2.5),
+          shape: r.shape || 'Round',
+          customShape: r.shape === 'Other' ? r.customShape : null
         }))
       : [];
 
@@ -260,7 +264,7 @@ export default function MaterialModal({
             </label>
             <input
               type="text"
-              placeholder="e.g. MMTC-PAMP Bullion / Surat Diamond Syndicate"
+              placeholder="e.g. Surat Diamond Syndicate / MMTC-PAMP Bullion"
               value={vendorName}
               onChange={(e) => setVendorName(e.target.value)}
               style={{ width: '100%', padding: '12px', borderRadius: '12px', border: errors.vendorName ? '2px solid #dc2626' : '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', boxSizing: 'border-box' }}
@@ -305,32 +309,28 @@ export default function MaterialModal({
             </div>
           )}
 
-          {/* 2. DIAMOND INDEPENDENT CHILD RECORDS SECTION (+ ADD MORE) */}
+          {/* 2. STRUCTURED DIAMOND SECTION WITH REUSABLE COMPONENT (+ ADD MORE) */}
           {materialType === 'diamond' && (
             <div style={{ background: '#eff6ff', padding: '14px', borderRadius: '16px', border: '1px solid #bfdbfe' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af', textTransform: 'uppercase' }}>
-                DIAMOND ITEMS ({diamondItems.length} INDEPENDENT RECORDS)
-              </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af', textTransform: 'uppercase' }}>
+                  DIAMOND ITEMS ({diamondItems.length} ROWS)
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af' }}>
+                  Total: {totalCalculatedWeight.toFixed(2)} ct
+                </span>
+              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                {diamondItems.map((item) => (
-                  <div key={item.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="number" step="0.01" placeholder="Weight (ct)"
-                      value={item.weight} onChange={(e) => handleDiamondChange(item.id, 'weight', e.target.value)}
-                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text" placeholder="Size (e.g. 0.10 ct, 2.5mm)"
-                      value={item.size} onChange={(e) => handleDiamondChange(item.id, 'size', e.target.value)}
-                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                    />
-                    {diamondItems.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveDiamondItem(item.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {diamondItems.map((item, idx) => (
+                  <DiamondItemInput
+                    key={item.id}
+                    item={item}
+                    index={idx}
+                    onChange={handleDiamondChange}
+                    onRemove={() => handleRemoveDiamondItem(item.id)}
+                    showRemove={diamondItems.length > 1}
+                  />
                 ))}
               </div>
 
@@ -376,7 +376,7 @@ export default function MaterialModal({
                     />
                     {gemstoneItems.length > 1 && (
                       <button type="button" onClick={() => handleRemoveGemstoneItem(item.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Trash2 size={16} />
+                        <X size={16} />
                       </button>
                     )}
                   </div>

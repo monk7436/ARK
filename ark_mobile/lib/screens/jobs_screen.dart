@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/material_entry.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/job_modal.dart';
@@ -13,55 +14,60 @@ class JobsScreen extends StatefulWidget {
 
 class _JobsScreenState extends State<JobsScreen> {
   // Ordered by latest created job first (e.g. #003, #002, #001)
-  final List<Map<String, dynamic>> _jobs = [
-    {
-      'id': 'job-103',
-      'jobNumber': '003',
-      'timestamp': '04/08/2026, 05:45 PM',
-      'manufacturerId': 'mfg-1',
-      'manufacturerName': 'Ramesh Artisan Workshop',
-      'productName': '24K Temple Heritage Choker Necklace',
-      'goldWeight': 110.500,
-      'goldPurity': '24K',
-      'diamondRows': [],
-      'gemstoneRows': [{'weight': '2.50', 'size': 'Emerald 5x7 mm'}],
-      'notes': 'Traditional Nakshi work',
-      'photoUrl': 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
-      'photos': ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'],
-      'status': 'Completed'
-    },
-    {
-      'id': 'job-102',
-      'jobNumber': '002',
-      'timestamp': '02/08/2026, 03:15 PM',
-      'manufacturerId': 'mfg-1',
-      'manufacturerName': 'Ramesh Artisan Workshop',
-      'productName': '18K Diamond Solitaire Bangle Set',
-      'goldWeight': 45.000,
-      'goldPurity': '18K',
-      'diamondRows': [{'weight': '1.20', 'size': '0.10 ct'}, {'weight': '0.80', 'size': '0.05 ct'}],
-      'gemstoneRows': [],
-      'notes': 'White Gold Rhodium plating requested',
-      'photoUrl': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
-      'photos': ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'],
-      'status': 'In Progress'
-    },
-    {
-      'id': 'job-101',
-      'jobNumber': '001',
-      'timestamp': '28/07/2026, 11:30 AM',
-      'manufacturerId': 'mfg-1',
-      'manufacturerName': 'Ramesh Artisan Workshop',
-      'productName': '22K Antique Royal Signet Ring',
-      'goldWeight': 14.200,
-      'goldPurity': '22K',
-      'diamondRows': [{'weight': '0.25', 'size': '0.25 ct'}],
-      'gemstoneRows': [{'weight': '0.10', 'size': 'Ruby 3mm'}],
-      'notes': 'Yellow Gold finish with antique polish',
-      'photoUrl': '',
-      'photos': [],
-      'status': 'In Progress'
-    },
+  final List<JobEntry> _jobs = [
+    JobEntry(
+      id: 'job-103',
+      jobNumber: '003',
+      timestamp: '04/08/2026, 05:45 PM',
+      manufacturerId: 'mfg-1',
+      manufacturerName: 'Ramesh Artisan Workshop',
+      productName: '24K Temple Heritage Choker Necklace',
+      goldWeight: 110.500,
+      goldPurity: '24K',
+      diamondItems: [],
+      gemstoneItems: [GemstoneItem(id: 'g-1', weight: 2.50, size: 'Emerald 5x7 mm', stoneType: 'Emerald')],
+      notes: 'Traditional Nakshi work with fine filigree',
+      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
+      photos: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'],
+      status: 'Completed',
+    ),
+    JobEntry(
+      id: 'job-102',
+      jobNumber: '002',
+      timestamp: '02/08/2026, 03:15 PM',
+      manufacturerId: 'mfg-1',
+      manufacturerName: 'Ramesh Artisan Workshop',
+      productName: '18K Diamond Solitaire Bangle Set',
+      goldWeight: 45.000,
+      goldPurity: '18K',
+      diamondItems: [
+        DiamondItem(id: 'd-1', weightCt: 1.20, sizeMm: 2.5, shape: 'Round'),
+        DiamondItem(id: 'd-2', weightCt: 0.80, sizeMm: 2.0, shape: 'Oval'),
+      ],
+      gemstoneItems: [],
+      notes: 'White Gold Rhodium plating requested',
+      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
+      photos: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'],
+      status: 'In Progress',
+    ),
+    JobEntry(
+      id: 'job-101',
+      jobNumber: '001',
+      timestamp: '28/07/2026, 11:30 AM',
+      manufacturerId: 'mfg-1',
+      manufacturerName: 'Ramesh Artisan Workshop',
+      productName: '22K Antique Royal Signet Ring',
+      goldWeight: 14.200,
+      goldPurity: '22K',
+      diamondItems: [
+        DiamondItem(id: 'd-3', weightCt: 0.25, sizeMm: 2.5, shape: 'Oval'),
+      ],
+      gemstoneItems: [GemstoneItem(id: 'g-2', weight: 0.10, size: 'Ruby 3mm', stoneType: 'Ruby')],
+      notes: 'Yellow Gold finish with antique matte polish',
+      photoUrl: '',
+      photos: [],
+      status: 'In Progress',
+    ),
   ];
 
   String _getNextJobNumber() {
@@ -69,14 +75,14 @@ class _JobsScreenState extends State<JobsScreen> {
     return nextSeq.toString().padLeft(3, '0');
   }
 
-  void _saveJob(Map<String, dynamic> jobMap) {
+  void _saveJob(JobEntry job) {
     setState(() {
-      final index = _jobs.indexWhere((j) => j['id'] == jobMap['id']);
+      final index = _jobs.indexWhere((j) => j.id == job.id);
       if (index != -1) {
-        _jobs[index] = jobMap;
+        _jobs[index] = job;
       } else {
         // Latest created job is ALWAYS at the very top (index 0)
-        _jobs.insert(0, jobMap);
+        _jobs.insert(0, job);
       }
     });
   }
@@ -126,7 +132,6 @@ class _JobsScreenState extends State<JobsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
             _jobs.isEmpty
                 ? Container(
                     padding: const EdgeInsets.all(32),
@@ -140,11 +145,8 @@ class _JobsScreenState extends State<JobsScreen> {
                     itemCount: _jobs.length,
                     itemBuilder: (context, index) {
                       final job = _jobs[index];
-                      final isDone = job['status'] == 'Completed';
-
-                      final List dList = job['diamondRows'] ?? [];
-                      final List gList = job['gemstoneRows'] ?? [];
-                      final String photoUrl = (job['photoUrl'] ?? '').toString();
+                      final isDone = job.status == 'Completed';
+                      final String photoUrl = (job.photoUrl ?? (job.photos.isNotEmpty ? job.photos.first : '')).toString();
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -169,10 +171,13 @@ class _JobsScreenState extends State<JobsScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                         decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFBFDBFE))),
-                                        child: Text('#${job["jobNumber"]}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                                        child: Text('#${job.jobNumber}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
                                       ),
                                       const SizedBox(width: 8),
-                                      Text(job['productName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain)),
+                                      ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 160),
+                                        child: Text(job.productName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain), overflow: TextOverflow.ellipsis),
+                                      ),
                                     ],
                                   ),
 
@@ -185,7 +190,7 @@ class _JobsScreenState extends State<JobsScreen> {
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Text(
-                                          job['status'],
+                                          job.status,
                                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDone ? const Color(0xFF059669) : const Color(0xFF2563EB)),
                                         ),
                                       ),
@@ -197,7 +202,7 @@ class _JobsScreenState extends State<JobsScreen> {
                                             builder: (ctx) => JobModal(
                                               initialJob: job,
                                               manufacturers: appState.manufacturers,
-                                              nextJobNumber: job['jobNumber'],
+                                              nextJobNumber: job.jobNumber,
                                               onSubmit: _saveJob,
                                             ),
                                           );
@@ -208,30 +213,30 @@ class _JobsScreenState extends State<JobsScreen> {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text('📍 ${job["manufacturerName"]} • 🕒 ${job["timestamp"]}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                              Text('📍 ${job.manufacturerName} • 🕒 ${job.timestamp}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
 
                               const SizedBox(height: 8),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 6,
                                 children: [
-                                  if ((job['goldWeight'] ?? 0) > 0)
+                                  if (job.goldWeight > 0)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(color: const Color(0xFFFFFBE8), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFFDE68A))),
-                                      child: Text('Gold: ${job["goldWeight"]} g (${job["goldPurity"]})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
+                                      child: Text('Gold: ${job.goldWeight} g (${job.goldPurity})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
                                     ),
 
-                                  ...dList.map((d) => Container(
+                                  ...job.diamondItems.map((d) => Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFBFDBFE))),
-                                    child: Text('Diamond: ${d["weight"]} ct (${d["size"] ?? "Standard"})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                                    child: Text('Diamond: ${d.weightCt.toStringAsFixed(2)} ct (${d.sizeDisplay} ${d.effectiveShape})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
                                   )),
 
-                                  ...gList.map((g) => Container(
+                                  ...job.gemstoneItems.map((g) => Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(color: const Color(0xFFFAF5FF), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE9D5FF))),
-                                    child: Text('Gemstone: ${g["weight"]} ct (${g["size"] ?? "Standard"})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
+                                    child: Text('Gemstone: ${g.weight.toStringAsFixed(2)} ct (${g.size})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
                                   )),
                                 ],
                               ),
@@ -241,7 +246,6 @@ class _JobsScreenState extends State<JobsScreen> {
                       );
                     },
                   ),
-
           ],
         ),
       ),

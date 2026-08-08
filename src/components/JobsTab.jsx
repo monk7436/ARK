@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Plus, Edit3 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ArrowLeft, Plus, Edit3, Trash2 } from 'lucide-react';
 import JobModal from './JobModal';
 
 export default function JobsTab({
   manufacturers = [],
-  onBack
+  materials = [],
+  onBack,
+  onRecordJobOutward,
+  onRemoveJobOutward
 }) {
-  // Ordered by latest created job first (each containing independent diamond and gemstone item records)
+  // Ordered by latest created job first (each containing structured diamond and gemstone item records)
   const [jobs, setJobs] = useState([
     {
       id: 'job-103',
@@ -36,8 +39,8 @@ export default function JobsTab({
       goldWeight: 45.000,
       goldPurity: '18K',
       diamondItems: [
-        { id: 'd-item-201', parentId: 'job-102', weight: 1.20, size: '0.10 ct Round Brilliant' },
-        { id: 'd-item-202', parentId: 'job-102', weight: 0.80, size: '0.05 ct Accent Stones' }
+        { id: 'd-item-201', parentId: 'job-102', weight: 1.20, weightCt: 1.20, sizeMm: 2.5, shape: 'Round' },
+        { id: 'd-item-202', parentId: 'job-102', weight: 0.80, weightCt: 0.80, sizeMm: 2.0, shape: 'Oval' }
       ],
       gemstoneItems: [],
       notes: 'White Gold Rhodium plating requested by customer',
@@ -55,7 +58,7 @@ export default function JobsTab({
       goldWeight: 14.200,
       goldPurity: '22K',
       diamondItems: [
-        { id: 'd-item-301', parentId: 'job-101', weight: 0.25, size: '0.25 ct Cushion Cut' }
+        { id: 'd-item-301', parentId: 'job-101', weight: 0.25, weightCt: 0.25, sizeMm: 2.5, shape: 'Oval' }
       ],
       gemstoneItems: [
         { id: 'g-item-301', parentId: 'job-101', weight: 0.10, size: 'Ruby 3mm', stoneType: 'Ruby' }
@@ -70,6 +73,41 @@ export default function JobsTab({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
 
+  // Compute live diamond stock map for exact Size + Shape matching
+  const diamondStock = useMemo(() => {
+    const stockMap = {};
+
+    materials.filter(m => (m.materialType || m.material_type) === 'diamond').forEach(mat => {
+      const dItems = mat.diamondItems || mat.diamond_items || [];
+      dItems.forEach(d => {
+        const sizeKey = parseFloat(d.sizeMm || d.size || 2.5).toFixed(1);
+        const shapeKey = d.shape === 'Other' ? (d.customShape || 'Other') : (d.shape || 'Round');
+        const weightVal = parseFloat(d.weightCt || d.weight || 0);
+
+        if (!stockMap[sizeKey]) stockMap[sizeKey] = {};
+        if (!stockMap[sizeKey][shapeKey]) {
+          stockMap[sizeKey][shapeKey] = {
+            sizeMm: parseFloat(d.sizeMm || d.size || 2.5),
+            shape: shapeKey,
+            totalReceived: 0,
+            totalIssued: 0,
+            available: 0
+          };
+        }
+
+        if (mat.direction === 'INWARD') {
+          stockMap[sizeKey][shapeKey].totalReceived += weightVal;
+        } else {
+          stockMap[sizeKey][shapeKey].totalIssued += weightVal;
+        }
+        stockMap[sizeKey][shapeKey].available = 
+          stockMap[sizeKey][shapeKey].totalReceived - stockMap[sizeKey][shapeKey].totalIssued;
+      });
+    });
+
+    return stockMap;
+  }, [materials]);
+
   // Continuous Sequence Job Number Generator (001, 002, 003...)
   const getNextJobNumber = () => {
     const nextSeq = jobs.length + 1;
@@ -83,7 +121,19 @@ export default function JobsTab({
       // Latest created job is ALWAYS at the top (index 0)
       setJobs(prev => [jobData, ...prev]);
     }
+
+    // Auto-generate linked Material Out record if callback provided
+    if (onRecordJobOutward) {
+      onRecordJobOutward(jobData);
+    }
     setEditingJob(null);
+  };
+
+  const handleDeleteJob = (jobId) => {
+    setJobs(prev => prev.filter(j => j.id !== jobId));
+    if (onRemoveJobOutward) {
+      onRemoveJobOutward(jobId);
+    }
   };
 
   return (
@@ -118,7 +168,7 @@ export default function JobsTab({
               Jobs
             </h2>
             <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>
-              Manufacturing Work Orders & Stone Issuance
+              Manufacturing Work Orders & Auto Diamond Stock Consumption
             </p>
           </div>
         </div>
@@ -206,6 +256,18 @@ export default function JobsTab({
                     >
                       <Edit3 size={13} /> Edit
                     </button>
+
+                    <button
+                      onClick={() => handleDeleteJob(job.id)}
+                      title="Delete Job & Restore Stock"
+                      style={{
+                        background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '8px',
+                        padding: '4px 8px', fontSize: '11px', fontWeight: '800', color: '#dc2626',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
 
@@ -214,7 +276,7 @@ export default function JobsTab({
                   <span>🕒 {job.timestamp}</span>
                 </div>
 
-                {/* Independent Child Stone Records Chips */}
+                {/* Structured Stone Items Chips */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}>
                   {job.goldWeight > 0 && (
                     <span style={{ fontSize: '11px', fontWeight: '800', background: '#fffbe8', color: '#b45309', padding: '4px 10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
@@ -222,14 +284,14 @@ export default function JobsTab({
                     </span>
                   )}
 
-                  {dItems.map((d) => (
-                    <span key={d.id} style={{ fontSize: '11px', fontWeight: '800', background: '#eff6ff', color: '#1e40af', padding: '4px 10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                      Diamond: {d.weight} ct ({d.size || 'Standard'})
+                  {dItems.map((d, i) => (
+                    <span key={i} style={{ fontSize: '11px', fontWeight: '800', background: '#eff6ff', color: '#1e40af', padding: '4px 10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                      Diamond: {parseFloat(d.weight || d.weightCt || 0).toFixed(2)} ct ({d.size || `${parseFloat(d.sizeMm || 2.5).toFixed(1)} mm`} {d.shape || 'Round'})
                     </span>
                   ))}
 
-                  {gItems.map((g) => (
-                    <span key={g.id} style={{ fontSize: '11px', fontWeight: '800', background: '#faf5ff', color: '#6b21a8', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
+                  {gItems.map((g, i) => (
+                    <span key={i} style={{ fontSize: '11px', fontWeight: '800', background: '#faf5ff', color: '#6b21a8', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
                       Gemstone: {g.weight} ct ({g.size || 'Standard'})
                     </span>
                   ))}
@@ -246,7 +308,7 @@ export default function JobsTab({
         )}
       </div>
 
-      {/* 3. CREATE / EDIT JOB MODAL */}
+      {/* 3. CREATE / EDIT JOB MODAL WITH DIAMOND STOCK VALIDATION */}
       <JobModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditingJob(null); }}
@@ -254,6 +316,7 @@ export default function JobsTab({
         initialJob={editingJob}
         manufacturers={manufacturers}
         nextJobNumber={getNextJobNumber()}
+        diamondStock={diamondStock}
       />
 
     </div>

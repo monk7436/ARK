@@ -45,6 +45,22 @@ export default function App() {
       price: 7200,
       totalAmount: 1800000,
       photoUrl: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300'
+    },
+    {
+      id: 'tx-102',
+      timestamp: '04/08/2026, 01:15 PM',
+      direction: 'INWARD',
+      materialType: 'diamond',
+      weight: 5.000,
+      vendorName: 'Surat Diamond Syndicate',
+      price: 45000,
+      totalAmount: 225000,
+      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
+      diamondItems: [
+        { id: 'd-item-init-1', parentId: 'tx-102', weight: 5.00, weightCt: 5.00, sizeMm: 2.5, shape: 'Oval' },
+        { id: 'd-item-init-2', parentId: 'tx-102', weight: 10.00, weightCt: 10.00, sizeMm: 2.5, shape: 'Round' },
+        { id: 'd-item-init-3', parentId: 'tx-102', weight: 4.50, weightCt: 4.50, sizeMm: 3.0, shape: 'Oval' }
+      ]
     }
   ]);
 
@@ -104,7 +120,8 @@ export default function App() {
             totalAmount: parseFloat(m.total_amount || m.totalAmount || 0),
             weight: parseFloat(m.weight || 0),
             price: parseFloat(m.price || 0),
-            vendorName: m.vendor_name || m.vendorName
+            vendorName: m.vendor_name || m.vendorName,
+            diamondItems: m.diamondItems || []
           })));
         }
 
@@ -178,6 +195,38 @@ export default function App() {
     await API.createMaterial(newEntry);
   };
 
+  // Auto-generate linked Material Out transaction when a Job with diamonds is created/updated
+  const handleRecordJobOutward = (job) => {
+    setMaterials(prev => {
+      const withoutPrevious = prev.filter(m => m.jobId !== job.id);
+      if (job.diamondItems && job.diamondItems.length > 0) {
+        const totalWeight = job.diamondItems.reduce((s, d) => s + (parseFloat(d.weightCt || d.weight) || 0), 0);
+        const outEntry = {
+          id: 'tx-auto-out-' + job.id,
+          timestamp: job.timestamp,
+          direction: 'OUTWARD',
+          materialType: 'diamond',
+          weight: totalWeight,
+          vendorName: 'Auto Issued from Vault',
+          manufacturerId: job.manufacturerId,
+          jobId: job.id,
+          price: 45000,
+          totalAmount: totalWeight * 45000,
+          notes: `Auto Material OUT for Job #${job.jobNumber} (${job.productName})`,
+          diamondItems: job.diamondItems,
+          photoUrl: job.photoUrl || ''
+        };
+        return [outEntry, ...withoutPrevious];
+      }
+      return withoutPrevious;
+    });
+  };
+
+  // Reconcile and restore stock when a Job is deleted
+  const handleRemoveJobOutward = (jobId) => {
+    setMaterials(prev => prev.filter(m => m.jobId !== jobId));
+  };
+
   const handleAddManufacturer = async (newMfg) => {
     setManufacturers(prev => [...prev, newMfg]);
     await API.createManufacturer(newMfg);
@@ -239,7 +288,10 @@ export default function App() {
         {activeTab === 'jobs' && (
           <JobsTab
             manufacturers={manufacturers}
+            materials={materials}
             onBack={() => setActiveTab('home')}
+            onRecordJobOutward={handleRecordJobOutward}
+            onRemoveJobOutward={handleRemoveJobOutward}
           />
         )}
 
@@ -259,7 +311,7 @@ export default function App() {
             materials={materials}
             manufacturers={manufacturers}
             onBack={() => setActiveTab('home')}
-            onOpenAddModal={(cat) => handleOpenAddModal(cat)}
+            onOpenAddModal={handleOpenAddModal}
           />
         )}
 
@@ -267,19 +319,21 @@ export default function App() {
           <InventoryTab
             inventory={inventory}
             onAddStockItem={handleAddStockItem}
-            onImportExcel={() => alert("Excel imported!")}
           />
         )}
 
         {activeTab === 'profile' && (
           <ProfileTab
             companyInfo={companyInfo}
-            onUpdateCompanyInfo={(info) => setCompanyInfo(info)}
+            onUpdateCompanyInfo={setCompanyInfo}
           />
         )}
       </main>
 
-      {/* Shared Universal Material Add Entry Modal */}
+      {/* Persistent Bottom Navigation Bar */}
+      <NavigationBar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* Universal Dynamic Material Entry Modal */}
       <MaterialModal
         isOpen={isMaterialModalOpen}
         onClose={() => setIsMaterialModalOpen(false)}
@@ -288,82 +342,39 @@ export default function App() {
         manufacturers={manufacturers}
       />
 
-      {/* Customers Modal */}
+      {/* Customers List Modal */}
       {isCustModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 1000,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-end'
-        }}>
-          <div style={{
-            background: '#ffffff',
-            width: '100%',
-            maxWidth: '600px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            borderTopLeftRadius: '24px',
-            borderTopRightRadius: '24px',
-            padding: '24px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Customers & Invoicing</h3>
-              <button onClick={() => setIsCustModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button>
-            </div>
-            <CustomersTab
-              inventory={inventory}
-              customers={customers}
-              onAddCustomer={handleAddCustomer}
-              onAssignProductToCustomer={handleAssignProductToCustomer}
-            />
-          </div>
-        </div>
+        <CustomersTab
+          customers={customers}
+          inventory={inventory}
+          onBack={() => setIsCustModalOpen(false)}
+          onAddCustomer={handleAddCustomer}
+          onAssignProduct={handleAssignProductToCustomer}
+        />
       )}
 
-      {/* Staff Management Overlay */}
+      {/* Staff Permissions Modal */}
       {isStaffModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 1000,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '20px'
-        }}>
-          <div className="glass-card" style={{
-            background: '#ffffff',
-            padding: '24px',
-            borderRadius: '20px',
-            width: '100%',
-            maxWidth: '440px'
-          }}>
+        <div className="modal-backdrop">
+          <div className="glass-card" style={{ background: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '440px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Staff Management</h3>
-              <button onClick={() => setIsStaffModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={22} /></button>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Staff Access & Roles</h3>
+              <button onClick={() => setIsStaffModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
             </div>
-            <p style={{ fontSize: '13px', color: '#64748b' }}>Manage counter staff permissions and active site operators.</p>
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontWeight: '700', fontSize: '13px', color: '#0f172a' }}>{companyInfo.ownerName} (You)</div>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>Full Admin Access</div>
-                </div>
-                <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '999px', fontWeight: '800' }}>OWNER</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: '800', color: '#0f172a' }}>Store Owner (Admin)</div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>Full control over bullion intake, margins, and invoices</div>
+              </div>
+              <div style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: '800', color: '#0f172a' }}>Sales Executive</div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>Create invoices, view stock catalog, manage customers</div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Navigation Bar */}
-      <NavigationBar activeTab={['material_list', 'jobs', 'manufacturers'].includes(activeTab) ? 'home' : activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 }

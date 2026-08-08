@@ -1,25 +1,49 @@
-// Individual Independent Child Diamond Record
+// Individual Structured Independent Child Diamond Record
 class DiamondItem {
   final String id;
   final String? parentId; // Linked to parent Job ID or Material Entry ID
-  final double weight;    // Carat (ct)
-  final String size;      // e.g. "0.10 ct", "2.5 mm Round Brilliant"
+  final double weightCt;  // Carat (ct)
+  final double sizeMm;    // 0.8 mm to 11.0 mm (0.1 mm step)
+  final String shape;     // Round, Princess, Cushion, Oval, Pear, Marquise, Emerald, Radiant, Asscher, Heart, Baguette, Uncut, Other
+  final String? customShape; // Specified if shape == 'Other'
   final double? rate;     // Optional Price per Carat
 
   DiamondItem({
     required this.id,
     this.parentId,
-    required this.weight,
-    required this.size,
+    required this.weightCt,
+    required this.sizeMm,
+    required this.shape,
+    this.customShape,
     this.rate,
   });
 
+  // Display category key (e.g. "2.5 mm Oval" or "3.0 mm Custom Cut")
+  String get effectiveShape => shape == 'Other' ? (customShape ?? 'Other') : shape;
+  String get sizeDisplay => '${sizeMm.toStringAsFixed(1)} mm';
+  String get categoryKey => '${sizeMm.toStringAsFixed(1)} mm_$effectiveShape';
+  String get displayName => '$sizeDisplay $effectiveShape';
+
+  // Compatibility getter for weight
+  double get weight => weightCt;
+  String get size => sizeDisplay;
+
   factory DiamondItem.fromJson(Map<String, dynamic> json) {
+    double parsedWeight = (json['weight_ct'] as num?)?.toDouble() ?? 
+                         (json['weightCt'] as num?)?.toDouble() ?? 
+                         (json['weight'] as num?)?.toDouble() ?? 0.0;
+    
+    double parsedSize = (json['size_mm'] as num?)?.toDouble() ?? 
+                       (json['sizeMm'] as num?)?.toDouble() ?? 
+                       double.tryParse(json['size']?.toString().replaceAll(' mm', '') ?? '') ?? 2.5;
+
     return DiamondItem(
       id: json['id']?.toString() ?? 'd-${DateTime.now().millisecondsSinceEpoch}',
       parentId: json['parent_id'] ?? json['parentId'],
-      weight: (json['weight'] as num?)?.toDouble() ?? 0.0,
-      size: json['size']?.toString() ?? 'Standard',
+      weightCt: parsedWeight,
+      sizeMm: parsedSize,
+      shape: json['shape']?.toString() ?? 'Round',
+      customShape: json['custom_shape'] ?? json['customShape'],
       rate: (json['rate'] as num?)?.toDouble(),
     );
   }
@@ -28,8 +52,12 @@ class DiamondItem {
     return {
       'id': id,
       'parent_id': parentId,
-      'weight': weight,
-      'size': size,
+      'weight_ct': weightCt,
+      'weight': weightCt,
+      'size_mm': sizeMm,
+      'size': sizeDisplay,
+      'shape': shape,
+      'custom_shape': customShape,
       'rate': rate,
     };
   }
@@ -76,7 +104,7 @@ class GemstoneItem {
   }
 }
 
-// Parent Material Entry with independent child stone items
+// Parent Material Entry with structured child diamond/gemstone stone items
 class MaterialEntry {
   final String id;
   final String materialType; // gold, diamond, gemstone
@@ -85,6 +113,7 @@ class MaterialEntry {
   final String? purity;
   final String? size;
   final String? manufacturerId;
+  final String? jobId;
   final String? productType;
   final String vendorName;
   final double price;
@@ -103,6 +132,7 @@ class MaterialEntry {
     this.purity,
     this.size,
     this.manufacturerId,
+    this.jobId,
     this.productType,
     required this.vendorName,
     required this.price,
@@ -126,6 +156,7 @@ class MaterialEntry {
       purity: json['purity'] ?? json['gold_purity'],
       size: json['size'],
       manufacturerId: json['manufacturer_id'] ?? json['manufacturerId'],
+      jobId: json['job_id'] ?? json['jobId'],
       productType: json['product_type'] ?? json['productType'],
       vendorName: json['vendor_name'] ?? json['vendorName'] ?? 'Unknown Vendor',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
@@ -147,6 +178,7 @@ class MaterialEntry {
       'purity': purity,
       'size': size,
       'manufacturer_id': manufacturerId,
+      'job_id': jobId,
       'product_type': productType,
       'vendor_name': vendorName,
       'price': price,
@@ -160,7 +192,7 @@ class MaterialEntry {
   }
 }
 
-// Parent Manufacturing Job Entry with independent child stone items
+// Parent Manufacturing Job Entry with structured child diamond/gemstone items
 class JobEntry {
   final String id;
   final String jobNumber;

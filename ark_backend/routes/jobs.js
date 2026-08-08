@@ -2,6 +2,30 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
+// Helper function to calculate live available diamond stock for a specific size and shape
+async function getAvailableDiamondStock(client, sizeMm, shape, customShape) {
+  const shapeKey = shape === 'Other' ? (customShape || 'Other') : shape;
+  const inRes = await client.query(
+    `SELECT COALESCE(SUM(d.weight_ct), 0) as received
+     FROM material_diamond_items d
+     JOIN materials m ON d.material_entry_id = m.id
+     WHERE m.direction = 'INWARD' AND d.size_mm = $1 AND (d.shape = $2 OR (d.shape = 'Other' AND d.custom_shape = $2))`,
+    [parseFloat(sizeMm), shapeKey]
+  );
+
+  const outRes = await client.query(
+    `SELECT COALESCE(SUM(d.weight_ct), 0) as issued
+     FROM material_diamond_items d
+     JOIN materials m ON d.material_entry_id = m.id
+     WHERE m.direction = 'OUTWARD' AND d.size_mm = $1 AND (d.shape = $2 OR (d.shape = 'Other' AND d.custom_shape = $2))`,
+    [parseFloat(sizeMm), shapeKey]
+  );
+
+  const received = parseFloat(inRes.rows[0]?.received || 0);
+  const issued = parseFloat(outRes.rows[0]?.issued || 0);
+  return Math.max(0, received - issued);
+}
+
 // GET all Jobs with independent child diamond & gemstone items
 router.get('/', async (req, res) => {
   try {
@@ -27,10 +51,19 @@ router.get('/', async (req, res) => {
         photos: j.photo_url ? [j.photo_url] : [],
         diamondItems: diamondRes.rows
           .filter(d => d.job_id === j.id)
-          .map(d => ({ id: d.id, parentId: d.job_id, weight: parseFloat(d.weight), size: d.size })),
+          .map(d => ({
+            id: d.id,
+            parentId: d.job_id,
+            weight: parseFloat(d.weight_ct || 0),
+            weightCt: parseFloat(d.weight_ct || 0),
+            sizeMm: parseFloat(d.size_mm || 0),
+            size: `${parseFloat(d.size_mm || 0).toFixed(1)} mm`,
+            shape: d.shape,
+            customShape: d.custom_shape
+          })),
         gemstoneItems: gemstoneRes.rows
           .filter(g => g.job_id === j.id)
-          .map(g => ({ id: g.id, parentId: g.job_id, weight: parseFloat(g.weight), size: g.size, stoneType: g.stone_type }))
+          .map(g => ({ id: g.id, parentId: g.job_id, weight: parseFloat(g.weight || 0), size: g.size, stoneType: g.stone_type }))
       };
     });
 
@@ -40,7 +73,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST create new Job with independent child diamond & gemstone items
+// POST create new Job with automatic Diamond stock validation and automated Material OUT generation
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -60,7 +93,32 @@ router.post('/', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 1. Insert Parent Job Record
+    // 1. Validate Diamond Stock Requirements
+    for (const item of diamondItems) {
+      const itemWeight = parseFloat(item.weight || item.weightCt || 0);
+      const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
+      const itemShape = item.shape || 'Round';
+      const itemCustomShape = item.customShape || null;
+
+      if (itemWeight > 0) {
+        const available = await getAvailableDiamondStock(client, itemSize, itemShape, itemCustomShape);
+        if (available < itemWeight) {
+          const short = itemWeight - available;
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'INSUFFICIENT_DIAMOND_STOCK',
+            message: `Insufficient Diamond Stock for ${itemSize.toFixed(1)} mm ${itemShape}. Required: ${itemWeight.toFixed(2)} ct | Available: ${available.toFixed(2)} ct | Short: ${short.toFixed(2)} ct`,
+            sizeMm: itemSize,
+            shape: itemShape,
+            required: itemWeight,
+            available: available,
+            short: short
+          });
+        }
+      }
+    }
+
+    // 2. Insert Parent Job Record
     const jobRes = await client.query(
       `INSERT INTO jobs (job_number, timestamp, manufacturer_id, manufacturer_name, product_name, gold_weight, gold_purity, notes, photo_url)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -80,28 +138,64 @@ router.post('/', async (req, res) => {
 
     const newJob = jobRes.rows[0];
 
-    // 2. Insert Independent Diamond Items linked to this Job
+    // 3. Insert Structured Diamond Items linked to this Job
     const savedDiamonds = [];
+    let totalDiamondWeight = 0;
     if (Array.isArray(diamondItems)) {
       for (const item of diamondItems) {
-        if (item.weight || item.size) {
+        const itemWeight = parseFloat(item.weight || item.weightCt || 0);
+        const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
+        const itemShape = item.shape || 'Round';
+        const itemCustomShape = item.customShape || null;
+
+        if (itemWeight > 0) {
           const dRes = await client.query(
-            `INSERT INTO job_diamond_items (job_id, weight, size)
-             VALUES ($1, $2, $3)
+            `INSERT INTO job_diamond_items (job_id, weight_ct, size_mm, shape, custom_shape)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING *`,
-            [newJob.id, parseFloat(item.weight || 0), item.size || 'Standard']
+            [newJob.id, itemWeight, itemSize, itemShape, itemCustomShape]
           );
           savedDiamonds.push({
             id: dRes.rows[0].id,
             parentId: newJob.id,
-            weight: parseFloat(dRes.rows[0].weight),
-            size: dRes.rows[0].size
+            weight: parseFloat(dRes.rows[0].weight_ct),
+            weightCt: parseFloat(dRes.rows[0].weight_ct),
+            sizeMm: parseFloat(dRes.rows[0].size_mm),
+            size: `${parseFloat(dRes.rows[0].size_mm).toFixed(1)} mm`,
+            shape: dRes.rows[0].shape,
+            customShape: dRes.rows[0].custom_shape
           });
+          totalDiamondWeight += itemWeight;
         }
       }
     }
 
-    // 3. Insert Independent Gemstone Items linked to this Job
+    // 4. AUTOMATIC MATERIAL OUT: Generate linked Material OUT record for consumed Diamonds
+    if (savedDiamonds.length > 0) {
+      const matOutRes = await client.query(
+        `INSERT INTO materials (direction, material_type, gold_weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes, photo_url)
+         VALUES ('OUTWARD', 'diamond', 0, 'Auto Issued from Vault', $1, $2, 45000, $3, $4, $5)
+         RETURNING id`,
+        [
+          manufacturerId || null,
+          newJob.id,
+          totalDiamondWeight * 45000,
+          `Auto Material OUT for Job #${newJob.job_number} (${newJob.product_name})`,
+          photoUrl || ''
+        ]
+      );
+      const matOutId = matOutRes.rows[0].id;
+
+      for (const d of savedDiamonds) {
+        await client.query(
+          `INSERT INTO material_diamond_items (material_entry_id, weight_ct, size_mm, shape, custom_shape)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [matOutId, d.weightCt, d.sizeMm, d.shape, d.customShape]
+        );
+      }
+    }
+
+    // 5. Insert Gemstone Items
     const savedGemstones = [];
     if (Array.isArray(gemstoneItems)) {
       for (const item of gemstoneItems) {
@@ -126,7 +220,7 @@ router.post('/', async (req, res) => {
     await client.query('COMMIT');
 
     res.status(201).json({
-      message: 'Job created with independent diamond and gemstone records',
+      message: 'Job created and Diamond inventory consumed automatically',
       job: {
         id: newJob.id,
         jobNumber: newJob.job_number,
@@ -152,7 +246,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT update existing Job (editing only Gold, Diamond items, Gemstone items, and Notes)
+// PUT update existing Job (atomic reconciliation: restore old stock, validate new requirements, apply new deductions)
 router.put('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -161,37 +255,102 @@ router.put('/:id', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 1. Update Parent Job Record (Gold & Notes)
-    await client.query(
-      `UPDATE jobs
-       SET gold_weight = $1, gold_purity = $2, notes = $3
-       WHERE id = $4`,
-      [parseFloat(goldWeight || 0), goldPurity || '24K', notes || '', id]
-    );
+    // 1. Temporarily remove previous auto Material OUT for this Job to restore available stock
+    await client.query('DELETE FROM materials WHERE job_id = $1 AND direction = \'OUTWARD\'', [id]);
 
-    // 2. Replace Child Diamond Items
-    await client.query('DELETE FROM job_diamond_items WHERE job_id = $1', [id]);
-    const updatedDiamonds = [];
-    if (Array.isArray(diamondItems)) {
-      for (const item of diamondItems) {
-        if (item.weight || item.size) {
-          const dRes = await client.query(
-            `INSERT INTO job_diamond_items (job_id, weight, size)
-             VALUES ($1, $2, $3)
-             RETURNING *`,
-            [id, parseFloat(item.weight || 0), item.size || 'Standard']
-          );
-          updatedDiamonds.push({
-            id: dRes.rows[0].id,
-            parentId: id,
-            weight: parseFloat(dRes.rows[0].weight),
-            size: dRes.rows[0].size
+    // 2. Validate new Diamond Stock Requirements against restored stock
+    for (const item of diamondItems) {
+      const itemWeight = parseFloat(item.weight || item.weightCt || 0);
+      const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
+      const itemShape = item.shape || 'Round';
+      const itemCustomShape = item.customShape || null;
+
+      if (itemWeight > 0) {
+        const available = await getAvailableDiamondStock(client, itemSize, itemShape, itemCustomShape);
+        if (available < itemWeight) {
+          const short = itemWeight - available;
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'INSUFFICIENT_DIAMOND_STOCK',
+            message: `Insufficient Diamond Stock on Job edit for ${itemSize.toFixed(1)} mm ${itemShape}. Required: ${itemWeight.toFixed(2)} ct | Available: ${available.toFixed(2)} ct | Short: ${short.toFixed(2)} ct`,
+            sizeMm: itemSize,
+            shape: itemShape,
+            required: itemWeight,
+            available: available,
+            short: short
           });
         }
       }
     }
 
-    // 3. Replace Child Gemstone Items
+    // 3. Update Parent Job Record
+    const jobRes = await client.query(
+      `UPDATE jobs
+       SET gold_weight = $1, gold_purity = $2, notes = $3
+       WHERE id = $4
+       RETURNING *`,
+      [parseFloat(goldWeight || 0), goldPurity || '24K', notes || '', id]
+    );
+    const updatedJob = jobRes.rows[0];
+
+    // 4. Replace Child Diamond Items
+    await client.query('DELETE FROM job_diamond_items WHERE job_id = $1', [id]);
+    const updatedDiamonds = [];
+    let totalDiamondWeight = 0;
+    if (Array.isArray(diamondItems)) {
+      for (const item of diamondItems) {
+        const itemWeight = parseFloat(item.weight || item.weightCt || 0);
+        const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
+        const itemShape = item.shape || 'Round';
+        const itemCustomShape = item.customShape || null;
+
+        if (itemWeight > 0) {
+          const dRes = await client.query(
+            `INSERT INTO job_diamond_items (job_id, weight_ct, size_mm, shape, custom_shape)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [id, itemWeight, itemSize, itemShape, itemCustomShape]
+          );
+          updatedDiamonds.push({
+            id: dRes.rows[0].id,
+            parentId: id,
+            weight: parseFloat(dRes.rows[0].weight_ct),
+            weightCt: parseFloat(dRes.rows[0].weight_ct),
+            sizeMm: parseFloat(dRes.rows[0].size_mm),
+            size: `${parseFloat(dRes.rows[0].size_mm).toFixed(1)} mm`,
+            shape: dRes.rows[0].shape,
+            customShape: dRes.rows[0].custom_shape
+          });
+          totalDiamondWeight += itemWeight;
+        }
+      }
+    }
+
+    // 5. Re-generate new Material OUT for the updated diamond items
+    if (updatedDiamonds.length > 0) {
+      const matOutRes = await client.query(
+        `INSERT INTO materials (direction, material_type, gold_weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes)
+         VALUES ('OUTWARD', 'diamond', 0, 'Auto Issued from Vault', $1, $2, 45000, $3, $4)
+         RETURNING id`,
+        [
+          updatedJob.manufacturer_id || null,
+          id,
+          totalDiamondWeight * 45000,
+          `Auto Material OUT for Job #${updatedJob.job_number} (${updatedJob.product_name})`
+        ]
+      );
+      const matOutId = matOutRes.rows[0].id;
+
+      for (const d of updatedDiamonds) {
+        await client.query(
+          `INSERT INTO material_diamond_items (material_entry_id, weight_ct, size_mm, shape, custom_shape)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [matOutId, d.weightCt, d.sizeMm, d.shape, d.customShape]
+        );
+      }
+    }
+
+    // 6. Replace Child Gemstone Items
     await client.query('DELETE FROM job_gemstone_items WHERE job_id = $1', [id]);
     const updatedGemstones = [];
     if (Array.isArray(gemstoneItems)) {
@@ -217,11 +376,29 @@ router.put('/:id', async (req, res) => {
     await client.query('COMMIT');
 
     res.json({
-      message: 'Job updated with child items synchronized',
+      message: 'Job and Diamond stock reconciled successfully',
       jobId: id,
       diamondItems: updatedDiamonds,
       gemstoneItems: updatedGemstones
     });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE Job (reverses consumed diamond stock automatically)
+router.delete('/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    await client.query('DELETE FROM materials WHERE job_id = $1', [id]);
+    await client.query('DELETE FROM jobs WHERE id = $1', [id]);
+    await client.query('COMMIT');
+    res.json({ message: 'Job deleted and diamond stock returned to vault' });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });

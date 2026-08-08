@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/material_entry.dart';
 import '../theme/app_theme.dart';
+import 'diamond_item_input.dart';
 
 class MaterialModal extends StatefulWidget {
   final String initialDirection;
@@ -34,8 +35,8 @@ class _MaterialModalState extends State<MaterialModal> {
 
   String _purity = '24K';
 
-  // Multi-row Diamond items
-  List<Map<String, TextEditingController>> _diamondRows = [];
+  // Multi-row Structured Diamond items
+  List<DiamondItemInputData> _diamondInputs = [];
   // Multi-row Gemstone items
   List<Map<String, TextEditingController>> _gemstoneRows = [];
 
@@ -64,7 +65,16 @@ class _MaterialModalState extends State<MaterialModal> {
     final now = DateTime.now();
     _dateTimeCtrl.text = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}, ${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}";
     
-    _diamondRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
+    _diamondInputs = [
+      DiamondItemInputData(
+        id: 'd-${DateTime.now().millisecondsSinceEpoch}',
+        weightCtrl: TextEditingController(),
+        sizeMm: 2.5,
+        shape: 'Round',
+        customShapeCtrl: TextEditingController(),
+      )
+    ];
+
     _gemstoneRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
   }
 
@@ -81,14 +91,23 @@ class _MaterialModalState extends State<MaterialModal> {
 
   void _addDiamondRow() {
     setState(() {
-      _diamondRows.add({'weight': TextEditingController(), 'size': TextEditingController()});
+      _diamondInputs.add(
+        DiamondItemInputData(
+          id: 'd-${DateTime.now().millisecondsSinceEpoch}-${_diamondInputs.length}',
+          weightCtrl: TextEditingController(),
+          sizeMm: 2.5,
+          shape: 'Round',
+          customShapeCtrl: TextEditingController(),
+        ),
+      );
     });
   }
 
   void _removeDiamondRow(int index) {
-    if (_diamondRows.length > 1) {
+    if (_diamondInputs.length > 1) {
       setState(() {
-        _diamondRows.removeAt(index);
+        _diamondInputs[index].dispose();
+        _diamondInputs.removeAt(index);
       });
     }
   }
@@ -114,9 +133,8 @@ class _MaterialModalState extends State<MaterialModal> {
     _goldWeightCtrl.dispose();
     _priceCtrl.dispose();
     _notesCtrl.dispose();
-    for (var r in _diamondRows) {
-      r['weight']?.dispose();
-      r['size']?.dispose();
+    for (var d in _diamondInputs) {
+      d.dispose();
     }
     for (var r in _gemstoneRows) {
       r['weight']?.dispose();
@@ -236,7 +254,6 @@ class _MaterialModalState extends State<MaterialModal> {
     if (_formKey.currentState!.validate()) {
       final parentId = 'tx-${DateTime.now().millisecondsSinceEpoch}';
       
-      // Calculate total weight across independent items
       double totalCalculatedWeight = 0.0;
       List<DiamondItem> dItems = [];
       List<GemstoneItem> gItems = [];
@@ -244,16 +261,18 @@ class _MaterialModalState extends State<MaterialModal> {
       if (_materialType == 'gold') {
         totalCalculatedWeight = double.tryParse(_goldWeightCtrl.text) ?? 0.0;
       } else if (_materialType == 'diamond') {
-        dItems = _diamondRows
-            .where((r) => r['weight']!.text.isNotEmpty || r['size']!.text.isNotEmpty)
-            .map((r) {
-              final w = double.tryParse(r['weight']!.text) ?? 0.0;
+        dItems = _diamondInputs
+            .where((d) => (double.tryParse(d.weightCtrl.text) ?? 0.0) > 0)
+            .map((d) {
+              final w = double.tryParse(d.weightCtrl.text) ?? 0.0;
               totalCalculatedWeight += w;
               return DiamondItem(
-                id: 'd-item-${DateTime.now().microsecondsSinceEpoch}',
+                id: d.id,
                 parentId: parentId,
-                weight: w,
-                size: r['size']!.text.isEmpty ? 'Standard' : r['size']!.text,
+                weightCt: w,
+                sizeMm: d.sizeMm,
+                shape: d.shape,
+                customShape: d.shape == 'Other' ? d.customShapeCtrl.text : null,
               );
             }).toList();
       } else {
@@ -281,7 +300,7 @@ class _MaterialModalState extends State<MaterialModal> {
         direction: 'INWARD',
         weight: totalCalculatedWeight,
         purity: _materialType == 'gold' ? _purity : null,
-        vendorName: _vendorCtrl.text.isEmpty ? 'MMTC-PAMP Bullion' : _vendorCtrl.text,
+        vendorName: _vendorCtrl.text.isEmpty ? 'Surat Diamond Syndicate' : _vendorCtrl.text,
         price: priceVal,
         totalAmount: total,
         timestamp: _dateTimeCtrl.text,
@@ -302,8 +321,8 @@ class _MaterialModalState extends State<MaterialModal> {
     if (_materialType == 'gold') {
       totalCalculatedWeight = double.tryParse(_goldWeightCtrl.text) ?? 0.0;
     } else if (_materialType == 'diamond') {
-      for (var r in _diamondRows) {
-        totalCalculatedWeight += double.tryParse(r['weight']!.text) ?? 0.0;
+      for (var d in _diamondInputs) {
+        totalCalculatedWeight += double.tryParse(d.weightCtrl.text) ?? 0.0;
       }
     } else {
       for (var r in _gemstoneRows) {
@@ -317,7 +336,7 @@ class _MaterialModalState extends State<MaterialModal> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 460),
+        constraints: const BoxConstraints(maxWidth: 480),
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Form(
@@ -398,7 +417,7 @@ class _MaterialModalState extends State<MaterialModal> {
                   controller: _vendorCtrl,
                   decoration: const InputDecoration(
                     labelText: 'VENDOR NAME *',
-                    hintText: 'e.g. MMTC-PAMP Bullion / Surat Diamond Syndicate',
+                    hintText: 'e.g. Surat Diamond Syndicate / MMTC-PAMP Bullion',
                   ),
                   validator: (val) => val == null || val.isEmpty ? 'Vendor name is required' : null,
                 ),
@@ -459,7 +478,7 @@ class _MaterialModalState extends State<MaterialModal> {
                   ),
                 ],
 
-                // 2. DIAMOND MULTI-ROW (+ ADD MORE)
+                // 2. STRUCTURED DIAMOND MULTI-ROW (+ ADD MORE)
                 if (_materialType == 'diamond') ...[
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -471,43 +490,42 @@ class _MaterialModalState extends State<MaterialModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('DIAMOND ITEMS (${_diamondRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'DIAMOND ITEMS (${_diamondInputs.length} ROWS)',
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                            ),
+                            Text(
+                              'Total: ${totalCalculatedWeight.toStringAsFixed(2)} ct',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 8),
 
-                        for (int idx = 0; idx < _diamondRows.length; idx++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _diamondRows[idx]['weight'],
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
-                                    onChanged: (_) => setState(() {}),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _diamondRows[idx]['size'],
-                                    decoration: const InputDecoration(labelText: 'Size', hintText: '0.10 ct'),
-                                  ),
-                                ),
-                                if (_diamondRows.length > 1)
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                                    onPressed: () => _removeDiamondRow(idx),
-                                  ),
-                              ],
-                            ),
+                        for (int idx = 0; idx < _diamondInputs.length; idx++)
+                          DiamondItemInput(
+                            index: idx,
+                            data: _diamondInputs[idx],
+                            showRemove: _diamondInputs.length > 1,
+                            onRemove: () => _removeDiamondRow(idx),
+                            onWeightChanged: (_) => setState(() {}),
+                            onSizeChanged: (_) => setState(() {}),
+                            onShapeChanged: (_) => setState(() {}),
                           ),
 
                         OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 38),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF93C5FD)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
                           onPressed: _addDiamondRow,
-                          icon: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
-                          label: const Text('+ Add More Diamond Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                          icon: const Icon(Icons.add, size: 15, color: Color(0xFF2563EB)),
+                          label: const Text('+ Add More Diamond Item', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
                         ),
 
                         const SizedBox(height: 10),
@@ -567,10 +585,15 @@ class _MaterialModalState extends State<MaterialModal> {
                           ),
 
                         OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 38),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFFD8B4FE)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
                           onPressed: _addGemstoneRow,
-                          icon: const Icon(Icons.add, size: 14, color: Color(0xFF9333EA)),
-                          label: const Text('+ Add More Gemstone Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
+                          icon: const Icon(Icons.add, size: 15, color: Color(0xFF9333EA)),
+                          label: const Text('+ Add More Gemstone Item', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
                         ),
 
                         const SizedBox(height: 10),

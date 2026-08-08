@@ -5,13 +5,8 @@ import {
   ArrowDownLeft, 
   ArrowUpRight, 
   X, 
-  Calendar, 
-  User, 
-  Tag, 
-  SlidersHorizontal, 
-  RotateCcw,
-  Check,
-  ImageIcon
+  SlidersHorizontal,
+  Search
 } from 'lucide-react';
 
 export default function MaterialListTab({ 
@@ -29,6 +24,8 @@ export default function MaterialListTab({
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [filterVendor, setFilterVendor] = useState('');
   const [filterPurity, setFilterPurity] = useState('');
+  const [diamondSearchShape, setDiamondSearchShape] = useState('ALL');
+  const [diamondSearchSize, setDiamondSearchSize] = useState('ALL');
 
   // Filter materials by selected category
   const categoryMaterials = materials.filter(m => {
@@ -46,7 +43,41 @@ export default function MaterialListTab({
     .reduce((sum, m) => sum + (parseFloat(m.weight) || 0), 0);
 
   const balance = totalIn - totalOut;
-  const unitLabel = selectedCategory === 'gold' ? 'g' : 'CTS';
+  const unitLabel = selectedCategory === 'gold' ? 'g' : 'ct';
+
+  // --- STRUCTURED DIAMOND INVENTORY GROUPING (SIZE + SHAPE HIERARCHY) ---
+  const diamondStockGrouped = {};
+  if (selectedCategory === 'diamond') {
+    materials.filter(m => (m.materialType || m.material_type) === 'diamond').forEach(mat => {
+      const dItems = mat.diamondItems || mat.diamond_items || [];
+      dItems.forEach(d => {
+        const sizeStr = `${parseFloat(d.sizeMm || d.size || 2.5).toFixed(1)} mm`;
+        const shapeStr = d.shape === 'Other' ? (d.customShape || 'Other') : (d.shape || 'Round');
+        const weightVal = parseFloat(d.weightCt || d.weight || 0);
+
+        if (!diamondStockGrouped[sizeStr]) {
+          diamondStockGrouped[sizeStr] = {};
+        }
+        if (!diamondStockGrouped[sizeStr][shapeStr]) {
+          diamondStockGrouped[sizeStr][shapeStr] = {
+            sizeMm: parseFloat(d.sizeMm || d.size || 2.5),
+            shape: shapeStr,
+            totalReceived: 0,
+            totalIssued: 0,
+            available: 0
+          };
+        }
+
+        if (mat.direction === 'INWARD') {
+          diamondStockGrouped[sizeStr][shapeStr].totalReceived += weightVal;
+        } else {
+          diamondStockGrouped[sizeStr][shapeStr].totalIssued += weightVal;
+        }
+        diamondStockGrouped[sizeStr][shapeStr].available = 
+          diamondStockGrouped[sizeStr][shapeStr].totalReceived - diamondStockGrouped[sizeStr][shapeStr].totalIssued;
+      });
+    });
+  }
 
   // Advanced Filter Matching Logic
   const filteredTransactions = categoryMaterials.filter(m => {
@@ -70,6 +101,8 @@ export default function MaterialListTab({
     setFilterVendor('');
     setFilterPurity('');
     setFilterDirection('ALL');
+    setDiamondSearchShape('ALL');
+    setDiamondSearchSize('ALL');
   };
 
   return (
@@ -143,7 +176,7 @@ export default function MaterialListTab({
         })}
       </div>
 
-      {/* 3. Material Vault Summary Card (In = Green, Out = RED, Remaining = BLUE) */}
+      {/* 3. Material Vault Summary Card */}
       <div className="glass-card" style={{
         padding: '20px',
         borderRadius: '18px',
@@ -176,7 +209,7 @@ export default function MaterialListTab({
           >
             <div style={{ fontSize: '10px', fontWeight: '800', color: '#047857' }}>TOTAL IN</div>
             <div style={{ fontSize: '16px', fontWeight: '800', color: '#065f46', marginTop: '2px' }}>
-              {totalIn.toFixed(3)} {unitLabel}
+              {totalIn.toFixed(2)} {unitLabel}
             </div>
           </div>
 
@@ -195,7 +228,7 @@ export default function MaterialListTab({
           >
             <div style={{ fontSize: '10px', fontWeight: '800', color: '#dc2626' }}>TOTAL OUT</div>
             <div style={{ fontSize: '16px', fontWeight: '800', color: '#991b1b', marginTop: '2px' }}>
-              {totalOut.toFixed(3)} {unitLabel}
+              {totalOut.toFixed(2)} {unitLabel}
             </div>
           </div>
 
@@ -214,13 +247,13 @@ export default function MaterialListTab({
           >
             <div style={{ fontSize: '10px', fontWeight: '800', color: '#2563eb' }}>REMAINING</div>
             <div style={{ fontSize: '16px', fontWeight: '800', color: '#1e40af', marginTop: '2px' }}>
-              {balance.toFixed(3)} {unitLabel}
+              {balance.toFixed(2)} {unitLabel}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 4. PROMINENT SINGLE "+ Add New Entry" BUTTON (UNIVERSAL ENTRY FORM) */}
+      {/* 4. PROMINENT SINGLE "+ Add New Entry" BUTTON */}
       <button
         onClick={() => onOpenAddModal(selectedCategory)}
         style={{
@@ -243,7 +276,79 @@ export default function MaterialListTab({
         <Plus size={20} /> Add New Entry
       </button>
 
-      {/* 5. Filtered Material Entry List */}
+      {/* 5. STRUCTURED DIAMOND INVENTORY BREAKDOWN (GROUPED BY SIZE + SHAPE) */}
+      {selectedCategory === 'diamond' && Object.keys(diamondStockGrouped).length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              Diamond Stock by Size & Shape
+            </h3>
+            <span style={{ fontSize: '11px', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #bfdbfe' }}>
+              {Object.keys(diamondStockGrouped).length} Sizes Tracked
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            {Object.entries(diamondStockGrouped).map(([sizeKey, shapes]) => (
+              <div
+                key={sizeKey}
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '14px',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '900', color: '#1e40af', background: '#eff6ff', padding: '3px 10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                    {sizeKey}
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#047857' }}>
+                    Total: {Object.values(shapes).reduce((s, sh) => s + sh.available, 0).toFixed(2)} ct
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {Object.values(shapes).map(sh => (
+                    <div
+                      key={sh.shape}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: sh.available > 0 ? '#f8fafc' : '#fef2f2',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: `1px solid ${sh.available > 0 ? '#e2e8f0' : '#fca5a5'}`
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '800', color: '#0f172a' }}>{sh.shape}</div>
+                        <div style={{ fontSize: '10px', color: '#64748b' }}>
+                          Rec: {sh.totalReceived.toFixed(2)} ct | Iss: {sh.totalIssued.toFixed(2)} ct
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: '13px',
+                        fontWeight: '800',
+                        color: sh.available > 0 ? '#047857' : '#dc2626'
+                      }}>
+                        {sh.available.toFixed(2)} ct
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 6. Filtered Material Entry List */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
@@ -291,6 +396,7 @@ export default function MaterialListTab({
             filteredTransactions.map(entry => {
               const isInward = entry.direction === 'INWARD';
               const photoSrc = entry.photoUrl || (entry.photos && entry.photos[0]);
+              const dItems = entry.diamondItems || entry.diamond_items || [];
 
               return (
                 <div
@@ -303,68 +409,70 @@ export default function MaterialListTab({
                     background: '#ffffff',
                     border: '1px solid #e2e8f0',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
+                    flexDirection: 'column',
+                    gap: '8px',
                     cursor: 'pointer',
                     boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ position: 'relative', width: '48px', height: '48px' }}>
-                      {photoSrc ? (
-                        <img 
-                          src={photoSrc} 
-                          alt="Thumbnail" 
-                          style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
-                        />
-                      ) : (
-                        <div style={{
-                          width: '48px', height: '48px', borderRadius: '10px',
-                          background: isInward ? '#dcfce7' : '#fef2f2',
-                          color: isInward ? '#15803d' : '#dc2626',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                          {isInward ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ position: 'relative', width: '44px', height: '44px' }}>
+                        {photoSrc ? (
+                          <img 
+                            src={photoSrc} 
+                            alt="Thumbnail" 
+                            style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
+                          />
+                        ) : (
+                          <div style={{
+                            width: '44px', height: '44px', borderRadius: '10px',
+                            background: isInward ? '#dcfce7' : '#fef2f2',
+                            color: isInward ? '#15803d' : '#dc2626',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            {isInward ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{
+                            fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
+                            background: isInward ? '#dcfce7' : '#fef2f2',
+                            color: isInward ? '#15803d' : '#dc2626'
+                          }}>
+                            {entry.direction}
+                          </span>
+                          <h4 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
+                            {entry.weight} {unitLabel} {entry.purity ? `(${entry.purity})` : ''}
+                          </h4>
                         </div>
-                      )}
-
-                      <div style={{
-                        position: 'absolute', bottom: '-2px', right: '-2px',
-                        width: '18px', height: '18px', borderRadius: '50%',
-                        background: isInward ? '#15803d' : '#dc2626',
-                        color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '10px', border: '2px solid #ffffff'
-                      }}>
-                        {isInward ? '↓' : '↑'}
+                        <p style={{ fontSize: '11px', color: '#64748b', margin: '3px 0 0 0' }}>
+                          {entry.vendorName || 'General Supplier'} • {entry.timestamp}
+                        </p>
                       </div>
                     </div>
 
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{
-                          fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
-                          background: isInward ? '#dcfce7' : '#fef2f2',
-                          color: isInward ? '#15803d' : '#dc2626'
-                        }}>
-                          {entry.direction}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                        ₹{entry.totalAmount ? entry.totalAmount.toLocaleString('en-IN') : '0'}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#d97706', fontWeight: '700' }}>Tap details ➔</div>
+                    </div>
+                  </div>
+
+                  {/* Structured Diamond Items Chips */}
+                  {dItems.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '6px', borderTop: '1px dashed #f1f5f9' }}>
+                      {dItems.map((d, i) => (
+                        <span key={i} style={{ fontSize: '10px', fontWeight: '800', background: '#eff6ff', color: '#1e40af', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                          {parseFloat(d.weight || d.weightCt || 0).toFixed(2)} ct ({d.size || `${parseFloat(d.sizeMm || 2.5).toFixed(1)} mm`} {d.shape || 'Round'})
                         </span>
-                        <h4 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                          {entry.weight} {unitLabel} {entry.purity ? `(${entry.purity})` : ''}
-                        </h4>
-                      </div>
-                      <p style={{ fontSize: '11px', color: '#64748b', margin: '3px 0 0 0' }}>
-                        {entry.vendorName || 'General Supplier'} • {entry.timestamp}
-                      </p>
+                      ))}
                     </div>
-                  </div>
-
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
-                      ₹{entry.totalAmount ? entry.totalAmount.toLocaleString('en-IN') : '0'}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#d97706', fontWeight: '700' }}>Tap details ➔</div>
-                  </div>
+                  )}
                 </div>
               );
             })
