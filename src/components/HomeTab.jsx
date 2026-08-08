@@ -23,6 +23,7 @@ import TeamManagementModal from './TeamManagementModal';
 export default function HomeTab({ 
   companyInfo, 
   onOpenMaterialModal, 
+  onOpenJobsModal,
   onOpenManufacturersModal, 
   onOpenCustomersModal, 
   materials,
@@ -219,7 +220,7 @@ export default function HomeTab({
 
         {/* Card 2: Jobs */}
         <div 
-          onClick={onOpenManufacturersModal}
+          onClick={onOpenJobsModal}
           className="glass-card clickable-card" 
           style={{
             padding: '16px',
@@ -245,7 +246,7 @@ export default function HomeTab({
           </div>
           <div>
             <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Jobs</h4>
-            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Manufacturing Work</p>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>Manufacturing Work Orders</p>
           </div>
         </div>
 
@@ -354,7 +355,7 @@ export default function HomeTab({
         )}
       </div>
 
-      {/* 4. RECENT TRANSACTIONS (EXACTLY BELOW GLOBAL SEARCH) */}
+      {/* 4. RECENT TRANSACTIONS */}
       <div style={{ marginTop: '2px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
@@ -413,7 +414,6 @@ export default function HomeTab({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* Thumbnail Image or Direction Icon */}
                     <div style={{ position: 'relative', width: '44px', height: '44px' }}>
                       {photoSrc ? (
                         <img 
