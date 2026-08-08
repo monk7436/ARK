@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import 'material_list_screen.dart';
 import 'manufacturing_screen.dart';
 import 'jobs_screen.dart';
-import 'customers_screen.dart';
+import 'invoicing_screen.dart';
 import 'team_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -291,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.people_alt_outlined,
                       iconBg: const Color(0xFFFFF7ED),
                       iconColor: const Color(0xFFEA580C),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomersScreen())),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvoicingScreen())),
                     ),
                   ],
                 ),
