@@ -121,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (q.isNotEmpty) {
         final matches = (m.vendorName.toLowerCase().contains(q)) ||
             (m.materialType.toLowerCase().contains(q)) ||
-            (m.purity.toLowerCase().contains(q)) ||
+            (m.purity != null && m.purity!.toLowerCase().contains(q)) ||
             (m.id.toLowerCase().contains(q));
         if (!matches) return false;
       }
@@ -172,11 +172,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: const Text('A', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                           ),
                           const SizedBox(width: 8),
-                          Column(
+                          const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('ark labs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain)),
-                              Text(appState.companyInfo.ownerName, style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                              Text('ark labs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain)),
+                              Text('Rahul', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
                             ],
                           ),
                         ],
@@ -392,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: Text(item.direction, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isInward ? const Color(0xFF059669) : const Color(0xFFDC2626))),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text('${item.weight} g (${item.purity})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
+                                  Text('${item.weight} g (${item.purity ?? "24K"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
                                 ],
                               ),
                               subtitle: Text('${item.vendorName} • ${item.timestamp}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
@@ -515,7 +515,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     _buildRow('Material:', entry.materialType.toUpperCase()),
                     _buildRow('Weight:', '${entry.weight} g'),
-                    if (entry.purity.isNotEmpty) _buildRow('Purity:', entry.purity),
+                    if (entry.purity != null && entry.purity!.isNotEmpty) _buildRow('Purity:', entry.purity!),
                     _buildRow('Vendor / Karigar:', entry.vendorName),
                     _buildRow('Timestamp:', entry.timestamp),
                     const Divider(),
