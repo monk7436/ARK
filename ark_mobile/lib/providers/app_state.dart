@@ -25,6 +25,13 @@ class AppState extends ChangeNotifier {
 
   int activeBottomTab = 0;
   bool isSyncing = false;
+  bool hasLoadedOnce = false;
+
+  // Fully Dynamic Lists loaded from PostgreSQL (Empty by default on fresh database)
+  List<MaterialEntry> _materials = [];
+  List<Manufacturer> _manufacturers = [];
+  List<InventoryItem> _inventory = [];
+  List<JobEntry> _jobs = [];
 
   AppState() {
     initLiveData();
@@ -36,14 +43,18 @@ class AppState extends ChangeNotifier {
 
     try {
       final remoteMaterials = await ApiService.fetchMaterials();
-      if (remoteMaterials.isNotEmpty) {
-        _materials = remoteMaterials;
-      }
+      _materials = remoteMaterials;
 
       final remoteMfg = await ApiService.fetchManufacturers();
-      if (remoteMfg.isNotEmpty) {
-        _manufacturers = remoteMfg;
-      }
+      _manufacturers = remoteMfg;
+
+      final remoteJobs = await ApiService.fetchJobs();
+      _jobs = remoteJobs;
+
+      final remoteInv = await ApiService.fetchInventory();
+      _inventory = remoteInv;
+
+      hasLoadedOnce = true;
     } catch (e) {
       debugPrint('Sync failed: $e');
     } finally {
@@ -52,91 +63,10 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Material Transactions (Gold 995 24K, Diamond, Gemstone)
-  List<MaterialEntry> _materials = [
-    MaterialEntry(
-      id: 'tx-101',
-      timestamp: '04/08/2026, 11:30 AM',
-      direction: 'INWARD',
-      materialType: 'gold',
-      weight: 250.000,
-      purity: '995 (24K)',
-      vendorName: 'MMTC-PAMP Bullion Supplier',
-      price: 7200,
-      totalAmount: 1800000,
-      photoUrl: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300',
-    ),
-    MaterialEntry(
-      id: 'tx-102',
-      timestamp: '04/08/2026, 01:15 PM',
-      direction: 'INWARD',
-      materialType: 'diamond',
-      weight: 5.000,
-      vendorName: 'Surat Diamond Syndicate',
-      price: 45000,
-      totalAmount: 225000,
-      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
-      diamondItems: [
-        DiamondItem(
-          id: 'd-item-init-1',
-          parentId: 'tx-102',
-          weightCt: 5.00,
-          sizeMm: 2.5,
-          shape: 'Oval',
-        ),
-        DiamondItem(
-          id: 'd-item-init-2',
-          parentId: 'tx-102',
-          weightCt: 10.00,
-          sizeMm: 2.5,
-          shape: 'Round',
-        ),
-        DiamondItem(
-          id: 'd-item-init-3',
-          parentId: 'tx-102',
-          weightCt: 4.50,
-          sizeMm: 3.0,
-          shape: 'Oval',
-        ),
-      ],
-    ),
-  ];
-
-  // Manufacturer Profiles
-  List<Manufacturer> _manufacturers = [
-    Manufacturer(
-      id: 'mfg-1',
-      name: 'Ramesh Artisan Workshop',
-      office: 'Zaveri Bazaar, Mumbai',
-      photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-      jobsDone: 42,
-      jobsOngoing: 3,
-      goldRemaining: 110.500,
-      makingCharge: 450,
-    ),
-  ];
-
-  // Tagged Inventory Items
-  final List<InventoryItem> _inventory = [
-    InventoryItem(
-      id: 'inv-1',
-      tagCode: 'ARK-RNG-1001',
-      name: '22K Antique Royal Signet Ring',
-      category: 'Ring',
-      purityKarat: '22K (91.6%)',
-      grossWeight: 14.200,
-      stoneWeight: 0.200,
-      netWeight: 14.000,
-      fineWeight: 12.824,
-      makingCharge: 450,
-      status: 'IN_STOCK',
-      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
-    ),
-  ];
-
   List<MaterialEntry> get materials => _materials;
   List<Manufacturer> get manufacturers => _manufacturers;
   List<InventoryItem> get inventory => _inventory;
+  List<JobEntry> get jobs => _jobs;
 
   // --- DIAMOND INVENTORY EXACT MATCHING ENGINE ---
 
@@ -228,6 +158,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Material Mutations
   void addMaterialEntry(MaterialEntry entry) {
     _materials.insert(0, entry);
     if (entry.direction == 'OUTWARD' && entry.manufacturerId != null) {
@@ -250,24 +181,51 @@ class AppState extends ChangeNotifier {
     ApiService.createMaterial(entry);
   }
 
-  // Auto-generate Material OUT when a Job with diamonds is created/updated
-  void recordJobDiamondOutward(JobEntry job) {
-    // Remove previous auto Material OUT for this job if any
-    _materials.removeWhere((m) => m.jobId == job.id && m.direction == 'OUTWARD');
+  // Job Mutations
+  void addJob(JobEntry job) {
+    _jobs.insert(0, job);
+    recordJobDiamondOutward(job);
+    notifyListeners();
+    ApiService.createJob(job);
+  }
 
+  void updateJob(JobEntry job) {
+    final index = _jobs.indexWhere((j) => j.id == job.id);
+    if (index != -1) {
+      _jobs[index] = job;
+      recordJobDiamondOutward(job);
+      notifyListeners();
+      ApiService.createJob(job);
+    }
+  }
+
+  // Manufacturer Mutations
+  void addManufacturer(Manufacturer mfg) {
+    _manufacturers.add(mfg);
+    notifyListeners();
+    ApiService.createManufacturer(mfg);
+  }
+
+  // Automatically record linked Material OUT when a Job with diamonds is created/edited
+  void recordJobDiamondOutward(JobEntry job) {
+    // 1. Remove previous auto-outward if editing
+    _materials.removeWhere((m) => m.id == 'auto-out-${job.id}');
+
+    // 2. Insert new auto-outward if job has diamond items
     if (job.diamondItems.isNotEmpty) {
+      final double totalWeight = job.diamondItems.fold(0.0, (s, d) => s + d.weightCt);
       final outEntry = MaterialEntry(
-        id: 'tx-auto-out-${job.id}',
+        id: 'auto-out-${job.id}',
         timestamp: job.timestamp,
         direction: 'OUTWARD',
         materialType: 'diamond',
-        weight: job.diamondItems.fold(0.0, (s, d) => s + d.weightCt),
+        weight: totalWeight,
         vendorName: 'Auto Issued from Vault',
         manufacturerId: job.manufacturerId,
-        jobId: job.id,
         price: 45000,
-        totalAmount: job.diamondItems.fold(0.0, (s, d) => s + d.weightCt) * 45000,
-        notes: 'Auto Material OUT for Job #${job.jobNumber} (${job.productName})',
+        totalAmount: totalWeight * 45000,
+        productType: job.productName,
+        photoUrl: job.photoUrl,
         diamondItems: job.diamondItems,
       );
       _materials.insert(0, outEntry);
@@ -275,17 +233,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Remove auto Material OUT when a Job is deleted
-  void removeJobDiamondOutward(String jobId) {
-    _materials.removeWhere((m) => m.jobId == jobId && m.direction == 'OUTWARD');
-    notifyListeners();
-  }
-
-  void addManufacturer(Manufacturer mfg) {
-    _manufacturers.add(mfg);
-    notifyListeners();
-  }
-
+  // Inventory Mutations
   void addInventoryItem(InventoryItem item) {
     _inventory.insert(0, item);
     notifyListeners();

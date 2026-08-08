@@ -3,73 +3,14 @@ import { ArrowLeft, Plus, Edit3, Trash2 } from 'lucide-react';
 import JobModal from './JobModal';
 
 export default function JobsTab({
+  jobs = [],
   manufacturers = [],
   materials = [],
   onBack,
-  onRecordJobOutward,
-  onRemoveJobOutward
+  onAddJob,
+  onUpdateJob,
+  onDeleteJob
 }) {
-  // Ordered by latest created job first (each containing structured diamond and gemstone item records)
-  const [jobs, setJobs] = useState([
-    {
-      id: 'job-103',
-      jobNumber: '003',
-      timestamp: '04/08/2026, 05:45 PM',
-      manufacturerId: 'mfg-1',
-      manufacturerName: 'Ramesh Artisan Workshop',
-      productName: '24K Temple Heritage Choker Necklace',
-      goldWeight: 110.500,
-      goldPurity: '24K',
-      diamondItems: [],
-      gemstoneItems: [
-        { id: 'g-item-101', parentId: 'job-103', weight: 2.50, size: 'Emerald 5x7 mm', stoneType: 'Emerald' }
-      ],
-      notes: 'Traditional Nakshi work with fine filigree',
-      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
-      photos: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'],
-      status: 'Completed'
-    },
-    {
-      id: 'job-102',
-      jobNumber: '002',
-      timestamp: '02/08/2026, 03:15 PM',
-      manufacturerId: 'mfg-1',
-      manufacturerName: 'Ramesh Artisan Workshop',
-      productName: '18K Diamond Solitaire Bangle Set',
-      goldWeight: 45.000,
-      goldPurity: '18K',
-      diamondItems: [
-        { id: 'd-item-201', parentId: 'job-102', weight: 1.20, weightCt: 1.20, sizeMm: 2.5, shape: 'Round' },
-        { id: 'd-item-202', parentId: 'job-102', weight: 0.80, weightCt: 0.80, sizeMm: 2.0, shape: 'Oval' }
-      ],
-      gemstoneItems: [],
-      notes: 'White Gold Rhodium plating requested by customer',
-      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
-      photos: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'],
-      status: 'In Progress'
-    },
-    {
-      id: 'job-101',
-      jobNumber: '001',
-      timestamp: '28/07/2026, 11:30 AM',
-      manufacturerId: 'mfg-1',
-      manufacturerName: 'Ramesh Artisan Workshop',
-      productName: '22K Antique Royal Signet Ring',
-      goldWeight: 14.200,
-      goldPurity: '22K',
-      diamondItems: [
-        { id: 'd-item-301', parentId: 'job-101', weight: 0.25, weightCt: 0.25, sizeMm: 2.5, shape: 'Oval' }
-      ],
-      gemstoneItems: [
-        { id: 'g-item-301', parentId: 'job-101', weight: 0.10, size: 'Ruby 3mm', stoneType: 'Ruby' }
-      ],
-      notes: 'Yellow Gold finish with antique matte polish',
-      photoUrl: '',
-      photos: [],
-      status: 'In Progress'
-    }
-  ]);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
 
@@ -116,23 +57,16 @@ export default function JobsTab({
 
   const handleSaveJob = (jobData) => {
     if (editingJob) {
-      setJobs(prev => prev.map(j => j.id === jobData.id ? jobData : j));
+      if (onUpdateJob) onUpdateJob(jobData);
     } else {
-      // Latest created job is ALWAYS at the top (index 0)
-      setJobs(prev => [jobData, ...prev]);
-    }
-
-    // Auto-generate linked Material Out record if callback provided
-    if (onRecordJobOutward) {
-      onRecordJobOutward(jobData);
+      if (onAddJob) onAddJob(jobData);
     }
     setEditingJob(null);
   };
 
   const handleDeleteJob = (jobId) => {
-    setJobs(prev => prev.filter(j => j.id !== jobId));
-    if (onRemoveJobOutward) {
-      onRemoveJobOutward(jobId);
+    if (onDeleteJob) {
+      onDeleteJob(jobId);
     }
   };
 
@@ -187,11 +121,22 @@ export default function JobsTab({
         </button>
       </div>
 
-      {/* 2. JOBS LIST CARDS (LATEST FIRST) */}
+      {/* 2. JOBS LIST CARDS / PROPER EMPTY STATE */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {jobs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '36px', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-            No jobs created yet. Tap <strong>+ Create Job</strong> above to assign a manufacturing work order.
+          <div style={{ textAlign: 'center', padding: '36px 20px', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
+            <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '15px', marginBottom: '4px' }}>No jobs found</div>
+            <p style={{ fontSize: '12px', margin: '0 0 16px 0' }}>Create your first manufacturing job.</p>
+            <button
+              onClick={() => { setEditingJob(null); setIsModalOpen(true); }}
+              style={{
+                background: '#2563eb', color: '#ffffff', border: 'none',
+                borderRadius: '999px', padding: '10px 20px', fontWeight: '800',
+                fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              <Plus size={16} /> Create Job
+            </button>
           </div>
         ) : (
           jobs.map(job => {

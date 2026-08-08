@@ -8,6 +8,7 @@ const jobsRoutes = require('./routes/jobs');
 const manufacturersRoutes = require('./routes/manufacturers');
 const inventoryRoutes = require('./routes/inventory');
 const customersRoutes = require('./routes/customers');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,6 +25,8 @@ app.use('/api/jobs', jobsRoutes);
 app.use('/api/manufacturers', manufacturersRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/customers', customersRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/transactions', dashboardRoutes);
 
 // Root Welcome Landing Page
 app.get('/', (req, res) => {

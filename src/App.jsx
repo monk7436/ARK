@@ -8,7 +8,7 @@ import JobsTab from './components/JobsTab';
 import ManufacturersTab from './components/ManufacturersTab';
 import CustomersTab from './components/CustomersTab';
 import MaterialModal from './components/MaterialModal';
-import { X } from 'lucide-react';
+import { X, RefreshCw } from 'lucide-react';
 import { API } from './api';
 
 export default function App() {
@@ -23,6 +23,10 @@ export default function App() {
   const [isCustModalOpen, setIsCustModalOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
 
+  // Loading & Error state
+  const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
+
   // Company Info State
   const [companyInfo, setCompanyInfo] = useState({
     name: 'ark labs',
@@ -32,138 +36,97 @@ export default function App() {
     gstin: '27AAAAA0000A1Z5'
   });
 
-  // State
-  const [materials, setMaterials] = useState([
-    {
-      id: 'tx-101',
-      timestamp: '04/08/2026, 11:30 AM',
-      direction: 'INWARD',
-      materialType: 'gold',
-      weight: 250.000,
-      purity: '24K',
-      vendorName: 'MMTC-PAMP Bullion Supplier',
-      price: 7200,
-      totalAmount: 1800000,
-      photoUrl: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300'
-    },
-    {
-      id: 'tx-102',
-      timestamp: '04/08/2026, 01:15 PM',
-      direction: 'INWARD',
-      materialType: 'diamond',
-      weight: 5.000,
-      vendorName: 'Surat Diamond Syndicate',
-      price: 45000,
-      totalAmount: 225000,
-      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
-      diamondItems: [
-        { id: 'd-item-init-1', parentId: 'tx-102', weight: 5.00, weightCt: 5.00, sizeMm: 2.5, shape: 'Oval' },
-        { id: 'd-item-init-2', parentId: 'tx-102', weight: 10.00, weightCt: 10.00, sizeMm: 2.5, shape: 'Round' },
-        { id: 'd-item-init-3', parentId: 'tx-102', weight: 4.50, weightCt: 4.50, sizeMm: 3.0, shape: 'Oval' }
-      ]
-    }
-  ]);
+  // Purely dynamic lists initialized from PostgreSQL Database (Empty on fresh install)
+  const [materials, setMaterials] = useState([]);
+  const [manufacturers, setManufacturers] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [jobs, setJobs] = useState([]);
 
-  const [manufacturers, setManufacturers] = useState([
-    {
-      id: 'mfg-1',
-      name: 'Ramesh Artisan Workshop',
-      office: 'Zaveri Bazaar, Mumbai',
-      mobile: '+91 98765 43210',
-      photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-      jobsDone: 42,
-      jobsOngoing: 3,
-      goldRemaining: 110.500,
-      makingCharge: 450
-    }
-  ]);
-
-  const [inventory, setInventory] = useState([
-    {
-      id: 'inv-1',
-      tagCode: 'ARK-RNG-1001',
-      name: '22K Antique Royal Signet Ring',
-      category: 'Ring',
-      purityKarat: '22K (91.6%)',
-      grossWeight: 14.200,
-      stoneWeight: 0.200,
-      netWeight: 14.000,
-      fineWeight: 12.824,
-      makingCharge: 450,
-      status: 'IN_STOCK',
-      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'
-    }
-  ]);
-
-  const [customers, setCustomers] = useState([
-    {
-      id: 'cust-1',
-      name: 'Vikram Shah (Owner)',
-      companyName: 'Royal Swarn Jewellers Pvt Ltd',
-      phone: '+91 98765 43210',
-      gstin: '27AAAAA0000A1Z5',
-      address: 'Shop 14, Zaveri Bazaar, Mumbai, MH',
-      assignedItems: [],
-      invoices: []
-    }
-  ]);
-
-  // Load live data from API on mount
-  useEffect(() => {
-    async function loadLiveData() {
-      try {
-        const matRes = await API.getMaterials();
-        if (matRes && matRes.materials && matRes.materials.length > 0) {
-          setMaterials(matRes.materials.map(m => ({
-            ...m,
-            materialType: m.material_type || m.materialType,
-            totalAmount: parseFloat(m.total_amount || m.totalAmount || 0),
-            weight: parseFloat(m.weight || 0),
-            price: parseFloat(m.price || 0),
-            vendorName: m.vendor_name || m.vendorName,
-            diamondItems: m.diamondItems || []
-          })));
-        }
-
-        const mfgRes = await API.getManufacturers();
-        if (mfgRes && mfgRes.manufacturers && mfgRes.manufacturers.length > 0) {
-          setManufacturers(mfgRes.manufacturers.map(m => ({
-            ...m,
-            goldRemaining: parseFloat(m.gold_remaining || m.goldRemaining || 0),
-            makingCharge: parseFloat(m.making_charge || m.makingCharge || 0),
-            jobsDone: m.jobs_done || m.jobsDone || 0,
-            jobsOngoing: m.jobs_ongoing || m.jobsOngoing || 0
-          })));
-        }
-
-        const invRes = await API.getInventory();
-        if (invRes && invRes.inventory && invRes.inventory.length > 0) {
-          setInventory(invRes.inventory.map(i => ({
-            ...i,
-            tagCode: i.tag_code || i.tagCode,
-            purityKarat: i.purity_karat || i.purityKarat,
-            grossWeight: parseFloat(i.gross_weight || i.grossWeight || 0),
-            stoneWeight: parseFloat(i.stone_weight || i.stoneWeight || 0),
-            netWeight: parseFloat(i.net_weight || i.netWeight || 0),
-            fineWeight: parseFloat(i.fine_weight || i.fineWeight || 0),
-            makingCharge: parseFloat(i.making_charge || i.makingCharge || 0)
-          })));
-        }
-
-        const custRes = await API.getCustomers();
-        if (custRes && custRes.customers && custRes.customers.length > 0) {
-          setCustomers(custRes.customers.map(c => ({
-            ...c,
-            companyName: c.company_name || c.companyName || c.name,
-            assignedItems: c.assignedItems || [],
-            invoices: c.invoices || []
-          })));
-        }
-      } catch (err) {
-        console.warn("Using local state fallback", err);
+  // Load live data dynamically from backend API on mount
+  const loadLiveData = async () => {
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      // 1. Materials
+      const matRes = await API.getMaterials();
+      if (matRes && matRes.materials) {
+        setMaterials(matRes.materials.map(m => ({
+          ...m,
+          materialType: m.material_type || m.materialType,
+          totalAmount: parseFloat(m.total_amount || m.totalAmount || 0),
+          weight: parseFloat(m.weight || m.gold_weight || 0),
+          price: parseFloat(m.price || 0),
+          vendorName: m.vendor_name || m.vendorName,
+          diamondItems: m.diamond_items || m.diamondItems || [],
+          gemstoneItems: m.gemstone_items || m.gemstoneItems || []
+        })));
       }
-    }
 
+      // 2. Manufacturers
+      const mfgRes = await API.getManufacturers();
+      if (mfgRes && mfgRes.manufacturers) {
+        setManufacturers(mfgRes.manufacturers.map(m => ({
+          ...m,
+          goldRemaining: parseFloat(m.gold_remaining || m.goldRemaining || 0),
+          makingCharge: parseFloat(m.making_charge || m.makingCharge || 450),
+          jobsDone: parseInt(m.jobs_done || m.jobsDone || 0),
+          jobsOngoing: parseInt(m.jobs_ongoing || m.jobsOngoing || 0)
+        })));
+      }
+
+      // 3. Jobs
+      const jobsRes = await API.getJobs();
+      if (jobsRes && jobsRes.jobs) {
+        setJobs(jobsRes.jobs.map(j => ({
+          ...j,
+          jobNumber: j.job_number || j.jobNumber,
+          manufacturerId: j.manufacturer_id || j.manufacturerId,
+          manufacturerName: j.manufacturer_name || j.manufacturerName,
+          productName: j.product_name || j.productName,
+          goldWeight: parseFloat(j.gold_weight || j.goldWeight || 0),
+          goldPurity: j.gold_purity || j.goldPurity || '24K',
+          diamondItems: j.diamond_items || j.diamondItems || [],
+          gemstoneItems: j.gemstone_items || j.gemstoneItems || [],
+          photoUrl: j.photo_url || j.photoUrl || ''
+        })));
+      }
+
+      // 4. Tagged Inventory
+      const invRes = await API.getInventory();
+      if (invRes && invRes.inventory) {
+        setInventory(invRes.inventory.map(i => ({
+          ...i,
+          tagCode: i.tag_code || i.tagCode,
+          purityKarat: i.purity_karat || i.purityKarat,
+          grossWeight: parseFloat(i.gross_weight || i.grossWeight || 0),
+          stoneWeight: parseFloat(i.stone_weight || i.stoneWeight || 0),
+          netWeight: parseFloat(i.net_weight || i.netWeight || 0),
+          fineWeight: parseFloat(i.fine_weight || i.fineWeight || 0),
+          makingCharge: parseFloat(i.making_charge || i.makingCharge || 0),
+          status: i.status || 'IN_STOCK'
+        })));
+      }
+
+      // 5. Customers
+      const custRes = await API.getCustomers();
+      if (custRes && custRes.customers) {
+        setCustomers(custRes.customers.map(c => ({
+          ...c,
+          companyName: c.company_name || c.companyName || c.name,
+          assignedItems: c.assignedItems || [],
+          invoices: c.invoices || []
+        })));
+      }
+    } catch (err) {
+      console.warn("Failed to load live data from database:", err);
+      setApiError("Unable to load entries. Please check your connection.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadLiveData();
   }, []);
 
@@ -178,6 +141,7 @@ export default function App() {
     setIsMaterialModalOpen(true);
   };
 
+  // Material Mutations
   const handleAddMaterialSubmit = async (newEntry) => {
     setMaterials(prev => [newEntry, ...prev]);
     if (newEntry.direction === 'OUTWARD' && newEntry.manufacturerId) {
@@ -192,7 +156,29 @@ export default function App() {
         return m;
       }));
     }
-    await API.createMaterial(newEntry);
+    const res = await API.createMaterial(newEntry);
+    if (res && res.material) {
+      setMaterials(prev => prev.map(m => m.id === newEntry.id ? { ...newEntry, id: res.material.id } : m));
+    }
+  };
+
+  // Job Mutations
+  const handleAddJob = async (newJob) => {
+    setJobs(prev => [newJob, ...prev]);
+    handleRecordJobOutward(newJob);
+    await API.createJob(newJob);
+  };
+
+  const handleUpdateJob = async (updatedJob) => {
+    setJobs(prev => prev.map(j => j.id === updatedJob.id ? updatedJob : j));
+    handleRecordJobOutward(updatedJob);
+    await API.updateJob(updatedJob.id, updatedJob);
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    setJobs(prev => prev.filter(j => j.id !== jobId));
+    handleRemoveJobOutward(jobId);
+    await API.deleteJob(jobId);
   };
 
   // Auto-generate linked Material Out transaction when a Job with diamonds is created/updated
@@ -227,23 +213,35 @@ export default function App() {
     setMaterials(prev => prev.filter(m => m.jobId !== jobId));
   };
 
+  // Manufacturer Mutations
   const handleAddManufacturer = async (newMfg) => {
     setManufacturers(prev => [...prev, newMfg]);
-    await API.createManufacturer(newMfg);
+    const res = await API.createManufacturer(newMfg);
+    if (res && res.manufacturer) {
+      setManufacturers(prev => prev.map(m => m.name === newMfg.name ? res.manufacturer : m));
+    }
   };
 
   const handleDeleteManufacturer = (mfgId) => {
     setManufacturers(prev => prev.filter(m => m.id !== mfgId));
   };
 
+  // Inventory Mutations
   const handleAddStockItem = async (newItem) => {
     setInventory(prev => [newItem, ...prev]);
-    await API.createInventoryItem(newItem);
+    const res = await API.createInventoryItem(newItem);
+    if (res && res.item) {
+      setInventory(prev => prev.map(i => i.id === newItem.id ? res.item : i));
+    }
   };
 
+  // Customer Mutations
   const handleAddCustomer = async (newCust) => {
     setCustomers(prev => [...prev, newCust]);
-    await API.createCustomer(newCust);
+    const res = await API.createCustomer(newCust);
+    if (res && res.customer) {
+      setCustomers(prev => prev.map(c => c.name === newCust.name ? res.customer : c));
+    }
   };
 
   const handleAssignProductToCustomer = async (customerId, item, invoice) => {
@@ -267,6 +265,42 @@ export default function App() {
     });
   };
 
+  // Loading indicator
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '14px', color: '#64748b' }}>
+        <RefreshCw size={28} className="animate-spin" color="#d97706" />
+        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>Loading ARK Vault Data...</div>
+        <div style={{ fontSize: '12px' }}>Connecting to PostgreSQL database</div>
+      </div>
+    );
+  }
+
+  // Error State with Retry Button
+  if (apiError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', padding: '24px', textAlign: 'center', gap: '12px' }}>
+        <div style={{ fontSize: '16px', fontWeight: '800', color: '#dc2626' }}>Unable to load entries</div>
+        <div style={{ fontSize: '13px', color: '#64748b', maxWidth: '300px' }}>Please check your connection and try again.</div>
+        <button
+          onClick={loadLiveData}
+          style={{
+            marginTop: '8px',
+            padding: '10px 20px',
+            borderRadius: '10px',
+            background: '#d97706',
+            color: '#ffffff',
+            border: 'none',
+            fontWeight: '700',
+            cursor: 'pointer'
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 16px 90px 16px' }}>
       
@@ -277,6 +311,7 @@ export default function App() {
             materials={materials}
             manufacturers={manufacturers}
             customers={customers}
+            jobs={jobs}
             onOpenMaterialModal={(dir) => handleOpenMaterialList(dir.toUpperCase())}
             onOpenJobsModal={() => setActiveTab('jobs')}
             onOpenManufacturersModal={() => setActiveTab('manufacturers')}
@@ -287,9 +322,13 @@ export default function App() {
 
         {activeTab === 'jobs' && (
           <JobsTab
+            jobs={jobs}
             manufacturers={manufacturers}
             materials={materials}
             onBack={() => setActiveTab('home')}
+            onAddJob={handleAddJob}
+            onUpdateJob={handleUpdateJob}
+            onDeleteJob={handleDeleteJob}
             onRecordJobOutward={handleRecordJobOutward}
             onRemoveJobOutward={handleRemoveJobOutward}
           />

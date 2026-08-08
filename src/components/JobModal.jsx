@@ -93,15 +93,13 @@ export default function JobModal({
 
   if (!isOpen) return null;
 
-  // Helper to look up available stock from passed diamondStock map
   const getAvailableStock = (sizeMm, shape, customShape) => {
     const shapeKey = shape === 'Other' ? (customShape || 'Other') : shape;
     const sizeKey = parseFloat(sizeMm || 2.5).toFixed(1);
     if (diamondStock[sizeKey] && diamondStock[sizeKey][shapeKey]) {
       return diamondStock[sizeKey][shapeKey].available || 0;
     }
-    // Default mock available if stock map not populated
-    return 10.0;
+    return 0.0;
   };
 
   // Independent Diamond Item Handlers

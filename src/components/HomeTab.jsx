@@ -7,15 +7,9 @@ import {
   ChevronDown, 
   Briefcase,
   X,
-  Calendar,
-  Tag,
-  User,
-  Building2,
-  PackageCheck,
-  Hammer,
-  Receipt,
+  Plus,
   Layers,
-  Sparkles
+  Hammer
 } from 'lucide-react';
 import StoreDropdownModal from './StoreDropdownModal';
 import TeamManagementModal from './TeamManagementModal';
@@ -26,9 +20,10 @@ export default function HomeTab({
   onOpenJobsModal,
   onOpenManufacturersModal, 
   onOpenCustomersModal, 
-  materials,
-  manufacturers,
-  customers,
+  materials = [],
+  manufacturers = [],
+  customers = [],
+  jobs = [],
   onOpenStaffModal
 }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,8 +42,7 @@ export default function HomeTab({
   // Team Members State
   const [teamMembers, setTeamMembers] = useState([
     { id: 'tm-1', name: 'Rahul (You)', phone: '+91 98765 43210', role: 'Owner', access: 'Admin', avatar: 'R' },
-    { id: 'tm-2', name: 'Amit Sharma', phone: '+91 98111 22334', role: 'Counter Sales', access: 'Sales Access', avatar: 'A' },
-    { id: 'tm-3', name: 'Pooja Verma', phone: '+91 98222 33445', role: 'Vault Operator', access: 'Vault In/Out', avatar: 'P' }
+    { id: 'tm-2', name: 'Counter Staff', phone: '+91 98111 22334', role: 'Sales Counter', access: 'Sales Access', avatar: 'S' }
   ]);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
 
@@ -59,6 +53,9 @@ export default function HomeTab({
   const handleAddTeamMember = (newMember) => {
     setTeamMembers(prev => [...prev, newMember]);
   };
+
+  // Live calculated active jobs count
+  const activeJobsCount = jobs.filter(j => j.status !== 'Completed').length;
 
   // Universal Filter Across Transactions, Vendors, Products, and Karigars
   const filteredEntries = materials.filter(m => {
@@ -241,7 +238,7 @@ export default function HomeTab({
               <Hammer size={22} />
             </div>
             <span style={{ fontSize: '10px', fontWeight: '800', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '999px' }}>
-              3 Active Jobs
+              {activeJobsCount} Active Jobs
             </span>
           </div>
           <div>
@@ -385,11 +382,21 @@ export default function HomeTab({
           </div>
         </div>
 
-        {/* Transaction Cards List */}
+        {/* Transaction Cards List / Actionable Empty State */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filteredEntries.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '24px', background: '#ffffff', borderRadius: '14px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '13px' }}>
-              No transactions match your search.
+            <div style={{ textAlign: 'center', padding: '36px 20px', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
+              <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '15px', marginBottom: '4px' }}>No recent transactions</div>
+              <p style={{ fontSize: '12px', margin: '0 0 14px 0' }}>Add your first material entry to start tracking vault balances.</p>
+              <button
+                onClick={() => onOpenMaterialModal('inward')}
+                style={{
+                  padding: '8px 16px', borderRadius: '8px', background: '#d97706', color: '#ffffff',
+                  border: 'none', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                <Plus size={14} /> + Add Entry
+              </button>
             </div>
           ) : (
             filteredEntries.map(entry => {

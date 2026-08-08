@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/material_entry.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/job_modal.dart';
@@ -13,83 +12,15 @@ class JobsScreen extends StatefulWidget {
 }
 
 class _JobsScreenState extends State<JobsScreen> {
-  // Ordered by latest created job first (e.g. #003, #002, #001)
-  final List<JobEntry> _jobs = [
-    JobEntry(
-      id: 'job-103',
-      jobNumber: '003',
-      timestamp: '04/08/2026, 05:45 PM',
-      manufacturerId: 'mfg-1',
-      manufacturerName: 'Ramesh Artisan Workshop',
-      productName: '24K Temple Heritage Choker Necklace',
-      goldWeight: 110.500,
-      goldPurity: '24K',
-      diamondItems: [],
-      gemstoneItems: [GemstoneItem(id: 'g-1', weight: 2.50, size: 'Emerald 5x7 mm', stoneType: 'Emerald')],
-      notes: 'Traditional Nakshi work with fine filigree',
-      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
-      photos: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'],
-      status: 'Completed',
-    ),
-    JobEntry(
-      id: 'job-102',
-      jobNumber: '002',
-      timestamp: '02/08/2026, 03:15 PM',
-      manufacturerId: 'mfg-1',
-      manufacturerName: 'Ramesh Artisan Workshop',
-      productName: '18K Diamond Solitaire Bangle Set',
-      goldWeight: 45.000,
-      goldPurity: '18K',
-      diamondItems: [
-        DiamondItem(id: 'd-1', weightCt: 1.20, sizeMm: 2.5, shape: 'Round'),
-        DiamondItem(id: 'd-2', weightCt: 0.80, sizeMm: 2.0, shape: 'Oval'),
-      ],
-      gemstoneItems: [],
-      notes: 'White Gold Rhodium plating requested',
-      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
-      photos: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'],
-      status: 'In Progress',
-    ),
-    JobEntry(
-      id: 'job-101',
-      jobNumber: '001',
-      timestamp: '28/07/2026, 11:30 AM',
-      manufacturerId: 'mfg-1',
-      manufacturerName: 'Ramesh Artisan Workshop',
-      productName: '22K Antique Royal Signet Ring',
-      goldWeight: 14.200,
-      goldPurity: '22K',
-      diamondItems: [
-        DiamondItem(id: 'd-3', weightCt: 0.25, sizeMm: 2.5, shape: 'Oval'),
-      ],
-      gemstoneItems: [GemstoneItem(id: 'g-2', weight: 0.10, size: 'Ruby 3mm', stoneType: 'Ruby')],
-      notes: 'Yellow Gold finish with antique matte polish',
-      photoUrl: '',
-      photos: [],
-      status: 'In Progress',
-    ),
-  ];
-
-  String _getNextJobNumber() {
-    final nextSeq = _jobs.length + 1;
+  String _getNextJobNumber(int count) {
+    final nextSeq = count + 1;
     return nextSeq.toString().padLeft(3, '0');
-  }
-
-  void _saveJob(JobEntry job) {
-    setState(() {
-      final index = _jobs.indexWhere((j) => j.id == job.id);
-      if (index != -1) {
-        _jobs[index] = job;
-      } else {
-        // Latest created job is ALWAYS at the very top (index 0)
-        _jobs.insert(0, job);
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
+    final jobs = appState.jobs;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
@@ -116,8 +47,8 @@ class _JobsScreenState extends State<JobsScreen> {
                   context: context,
                   builder: (ctx) => JobModal(
                     manufacturers: appState.manufacturers,
-                    nextJobNumber: _getNextJobNumber(),
-                    onSubmit: _saveJob,
+                    nextJobNumber: _getNextJobNumber(jobs.length),
+                    onSubmit: (j) => appState.addJob(j),
                   ),
                 );
               },
@@ -132,19 +63,55 @@ class _JobsScreenState extends State<JobsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _jobs.isEmpty
+            jobs.isEmpty
                 ? Container(
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(36),
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppTheme.borderSubtle)),
-                    child: const Text('No jobs created yet. Tap Create Job above.', style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.borderSubtle),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'No jobs found',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Create your first manufacturing job.',
+                          style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                        ),
+                        const SizedBox(height: 14),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                          ),
+                          icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                          label: const Text('Create Job', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => JobModal(
+                                manufacturers: appState.manufacturers,
+                                nextJobNumber: _getNextJobNumber(jobs.length),
+                                onSubmit: (j) => appState.addJob(j),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   )
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _jobs.length,
+                    itemCount: jobs.length,
                     itemBuilder: (context, index) {
-                      final job = _jobs[index];
+                      final job = jobs[index];
                       final isDone = job.status == 'Completed';
                       final String photoUrl = (job.photoUrl ?? (job.photos.isNotEmpty ? job.photos.first : '')).toString();
 
@@ -203,7 +170,7 @@ class _JobsScreenState extends State<JobsScreen> {
                                               initialJob: job,
                                               manufacturers: appState.manufacturers,
                                               nextJobNumber: job.jobNumber,
-                                              onSubmit: _saveJob,
+                                              onSubmit: (updated) => appState.updateJob(updated),
                                             ),
                                           );
                                         },

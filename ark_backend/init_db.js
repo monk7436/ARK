@@ -9,9 +9,9 @@ async function initializeDatabase() {
     const schemaSql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     console.log('📦 Executing DDL Schema creation on Neon...');
     await client.query(schemaSql);
-    console.log('✅ Tables created successfully: users, customers, materials, manufacturers, inventory, invoices.');
+    console.log('✅ Tables verified: users, customers, materials, material_diamond_items, material_gemstone_items, jobs, job_diamond_items, job_gemstone_items, manufacturers, inventory, invoices.');
 
-    // Seed default admin user if not existing
+    // Seed default admin user for store management authentication if not existing
     const userCheck = await client.query('SELECT * FROM users WHERE email = $1', ['admin@ark.com']);
     if (userCheck.rows.length === 0) {
       await client.query(
@@ -19,22 +19,10 @@ async function initializeDatabase() {
          VALUES ($1, $2, $3, $4)`,
         ['admin@ark.com', '$2a$10$X87S1Qk2p2tQe798LpPzU.Fq8y49sH1wJq2h5zJ2G1y1s1v1w1w1a', 'Store Owner', 'OWNER']
       );
-      console.log('👤 Created default admin user.');
+      console.log('👤 Initialized admin authentication user.');
     }
 
-    // Seed sample customers
-    const custCheck = await client.query('SELECT * FROM customers');
-    if (custCheck.rows.length === 0) {
-      await client.query(
-        `INSERT INTO customers (name, company_name, phone, gstin, address)
-         VALUES 
-         ('Vikram Shah (Owner)', 'Royal Swarn Jewellers Pvt Ltd', '+91 98765 43210', '27AAAAA0000A1Z5', 'Shop 14, Zaveri Bazaar, Mumbai, MH'),
-         ('Rajesh Kalyan (Partner)', 'Kalyan Partner Store', '+91 98111 22334', '07BBBBB1111B2Z8', 'Johri Bazaar, Jaipur, RJ')`
-      );
-      console.log('👥 Seeded sample Customer profiles.');
-    }
-
-    console.log('🎉 Neon PostgreSQL initialization COMPLETE!');
+    console.log('🎉 Neon PostgreSQL initialization COMPLETE (Clean database-driven schema)!');
   } catch (err) {
     console.error('❌ Error initializing database:', err);
   } finally {

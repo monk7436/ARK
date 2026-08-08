@@ -389,8 +389,19 @@ export default function MaterialListTab({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filteredTransactions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px', background: '#ffffff', borderRadius: '14px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-              No {selectedCategory} entries match the selected filters.
+            <div style={{ textAlign: 'center', padding: '36px 20px', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
+              <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '15px', marginBottom: '4px' }}>No material entries found</div>
+              <p style={{ fontSize: '12px', margin: '0 0 14px 0' }}>Add your first {selectedCategory} entry to record vault intake.</p>
+              <button
+                onClick={() => onOpenAddModal(selectedCategory)}
+                style={{
+                  background: '#d97706', color: '#ffffff', border: 'none',
+                  borderRadius: '999px', padding: '10px 20px', fontWeight: '800',
+                  fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                <Plus size={16} /> + Add Entry
+              </button>
             </div>
           ) : (
             filteredTransactions.map(entry => {

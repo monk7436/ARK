@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Package, Download, Upload, Search, Plus, FileSpreadsheet, X, Check } from 'lucide-react';
 
-export default function InventoryTab({ inventory, onAddStockItem, onImportExcel }) {
+export default function InventoryTab({ inventory = [], onAddStockItem, onImportExcel }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -21,8 +21,8 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
   const availableCategories = ['ALL', ...Array.from(new Set(inventory.map(item => item.category)))];
 
   const filteredInventory = inventory.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.tagCode.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (item.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (item.tagCode || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCat = selectedCategory === 'ALL' || item.category === selectedCategory;
     return matchesSearch && matchesCat;
   });
@@ -45,7 +45,7 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
       stoneWeight: stone,
       netWeight: net,
       fineWeight: parseFloat(fine.toFixed(3)),
-      makingCharge: parseFloat(makingCharge || 0),
+      makingCharge: parseFloat(makingCharge || 450),
       status: 'IN_STOCK',
       photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'
     });
@@ -92,7 +92,7 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
             Tagged Inventory Catalog
           </h2>
           <p style={{ fontSize: '12px', color: '#64748b' }}>
-            {inventory.length} total items | Net Weight: {inventory.reduce((a,b)=>a+b.netWeight,0).toFixed(2)}g
+            {inventory.length} total items | Net Weight: {inventory.reduce((a,b)=>a+(b.netWeight||b.grossWeight||0),0).toFixed(2)}g
           </p>
         </div>
 
@@ -109,89 +109,108 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
         </div>
       </div>
 
-      {/* DYNAMIC CATEGORY QUICK FILTERS */}
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
-          <Search size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '12px' }} />
-          <input
-            type="text"
-            placeholder="Search by Tag ID or item name..."
-            className="form-input"
-            style={{ paddingLeft: '36px' }}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      {inventory.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 20px', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
+          <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '16px', marginBottom: '4px' }}>No inventory items found</div>
+          <p style={{ fontSize: '13px', margin: '0 0 16px 0' }}>Tag your first finished jewelry piece to add it to the inventory catalog.</p>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            style={{
+              background: '#d97706', color: '#ffffff', border: 'none',
+              borderRadius: '999px', padding: '10px 22px', fontWeight: '800',
+              fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+            }}
+          >
+            <Plus size={16} /> + Tag New Item
+          </button>
         </div>
-
-        {/* Dynamic Category Buttons */}
-        <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
-          {availableCategories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: 'none',
-                background: selectedCategory === cat ? '#d97706' : 'transparent',
-                color: selectedCategory === cat ? '#ffffff' : '#475569',
-                fontWeight: '600',
-                fontSize: '12px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Inventory Grid Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-        {filteredInventory.map((item) => (
-          <div key={item.id} className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Image + Tag Badge */}
-            <div style={{ position: 'relative', width: '100%', height: '160px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-              <img
-                src={item.photoUrl}
-                alt={item.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      ) : (
+        <>
+          {/* DYNAMIC CATEGORY QUICK FILTERS */}
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+              <Search size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+              <input
+                type="text"
+                placeholder="Search by Tag ID or item name..."
+                className="form-input"
+                style={{ paddingLeft: '36px' }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#ffffff', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', color: '#b45309', border: '1px solid #fde68a', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                {item.tagCode}
-              </div>
-              <div style={{ position: 'absolute', bottom: '8px', right: '8px' }}>
-                <span className="badge badge-inward">{item.status}</span>
-              </div>
             </div>
 
-            {/* Title & Category */}
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>{item.name}</h3>
-              <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{item.category} • {item.purityKarat}</p>
-            </div>
-
-            <div style={{ height: '1px', background: '#e2e8f0' }} />
-
-            {/* Weight Breakdown Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', textAlign: 'center', fontSize: '12px' }}>
-              <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                <div style={{ color: '#64748b', fontSize: '10px' }}>Gross Wt</div>
-                <div style={{ fontWeight: '700', color: '#0f172a' }}>{item.grossWeight}g</div>
-              </div>
-              <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                <div style={{ color: '#64748b', fontSize: '10px' }}>Net Wt</div>
-                <div style={{ fontWeight: '700', color: '#b45309' }}>{item.netWeight}g</div>
-              </div>
-              <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                <div style={{ color: '#64748b', fontSize: '10px' }}>Fine Wt</div>
-                <div style={{ fontWeight: '700', color: '#15803d' }}>{item.fineWeight}g</div>
-              </div>
+            {/* Dynamic Category Buttons */}
+            <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+              {availableCategories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: selectedCategory === cat ? '#d97706' : 'transparent',
+                    color: selectedCategory === cat ? '#ffffff' : '#475569',
+                    fontWeight: '600',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Inventory Grid Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+            {filteredInventory.map((item) => (
+              <div key={item.id} className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Image + Tag Badge */}
+                <div style={{ position: 'relative', width: '100%', height: '160px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                  <img
+                    src={item.photoUrl || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'}
+                    alt={item.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#ffffff', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', color: '#b45309', border: '1px solid #fde68a', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    {item.tagCode}
+                  </div>
+                  <div style={{ position: 'absolute', bottom: '8px', right: '8px' }}>
+                    <span className="badge badge-inward">{item.status}</span>
+                  </div>
+                </div>
+
+                {/* Title & Category */}
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>{item.name}</h3>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{item.category} • {item.purityKarat}</p>
+                </div>
+
+                <div style={{ height: '1px', background: '#e2e8f0' }} />
+
+                {/* Weight Breakdown Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', textAlign: 'center', fontSize: '12px' }}>
+                  <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ color: '#64748b', fontSize: '10px' }}>Gross Wt</div>
+                    <div style={{ fontWeight: '700', color: '#0f172a' }}>{item.grossWeight}g</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ color: '#64748b', fontSize: '10px' }}>Net Wt</div>
+                    <div style={{ fontWeight: '700', color: '#b45309' }}>{item.netWeight}g</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ color: '#64748b', fontSize: '10px' }}>Fine Wt</div>
+                    <div style={{ fontWeight: '700', color: '#15803d' }}>{item.fineWeight}g</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Add New Tag Item Modal */}
       {isAddModalOpen && (
@@ -253,9 +272,29 @@ export default function InventoryTab({ inventory, onAddStockItem, onImportExcel 
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
-                <button type="submit" className="btn-gold" style={{ flex: 1, justifyContent: 'center' }}>Save & Tag Item</button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label">Gold Purity Standard</label>
+                  <select className="form-input" value={purityKarat} onChange={(e) => setPurityKarat(e.target.value)}>
+                    <option value="22K (91.6%)">22K (91.6% Fine)</option>
+                    <option value="18K (75.0%)">18K (75.0% Fine)</option>
+                    <option value="14K (58.5%)">14K (58.5% Fine)</option>
+                    <option value="24K (99.5%)">24K (99.5% Bullion)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Making Charge (₹/g)</label>
+                  <input type="number" className="form-input" value={makingCharge} onChange={(e) => setMakingCharge(e.target.value)} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn-secondary" style={{ flex: 1 }}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-gold" style={{ flex: 1 }}>
+                  Save & Tag Item
+                </button>
               </div>
             </form>
           </div>

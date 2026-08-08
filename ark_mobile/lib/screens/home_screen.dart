@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
-import '../models/material_entry.dart';
 import '../theme/app_theme.dart';
 import 'material_list_screen.dart';
 import 'manufacturing_screen.dart';
@@ -130,6 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return true;
     }).toList();
 
+    final activeJobsCount = appState.jobs.where((j) => j.status != 'Completed').length;
+
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
       body: SafeArea(
@@ -140,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 
-                // 1. COMPACT TOP COMPANY HEADER (-35% Height Reduction)
+                // 1. COMPACT TOP COMPANY HEADER
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
@@ -263,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       context,
                       title: 'Jobs',
                       subtitle: 'Manufacturing Work',
-                      badgeText: '3 Active Jobs',
+                      badgeText: '$activeJobsCount Active Jobs',
                       icon: Icons.build_circle_outlined,
                       iconBg: const Color(0xFFEFF6FF),
                       iconColor: const Color(0xFF2563EB),
@@ -282,15 +283,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManufacturingScreen())),
                     ),
 
-                    // Card 4: Customers
+                    // Card 4: Customers & Invoicing (Opens InvoicingScreen)
                     _buildActionCard(
                       context,
                       title: 'Customers',
-                      subtitle: 'Shops & Invoices',
-                      badgeText: '15 Accounts',
-                      icon: Icons.people_alt_outlined,
-                      iconBg: const Color(0xFFFFF7ED),
-                      iconColor: const Color(0xFFEA580C),
+                      subtitle: 'Invoicing & Profiles',
+                      badgeText: 'Live Directory',
+                      icon: Icons.receipt_long_outlined,
+                      iconBg: const Color(0xFFECFDF5),
+                      iconColor: const Color(0xFF059669),
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvoicingScreen())),
                     ),
                   ],
@@ -298,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 14),
 
-                // 3. GLOBAL UNIVERSAL SEARCH (IMMEDIATELY BELOW QUICK ACTIONS)
+                // 3. GLOBAL SEARCH
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -311,14 +312,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: TextField(
                     onChanged: (val) => setState(() => _searchQuery = val),
                     decoration: InputDecoration(
-                      hintText: 'Search customers, jewellery, manufacturers, products, transactions...',
-                      hintStyle: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
-                      prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.textMuted),
+                      hintText: 'Search material, vendors, jobs, purity...',
+                      hintStyle: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted, size: 20),
                       suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 16, color: AppTheme.textMuted),
-                              onPressed: () => setState(() => _searchQuery = ''),
-                            )
+                          ? IconButton(icon: const Icon(Icons.clear, size: 16), onPressed: () => setState(() => _searchQuery = ''))
                           : null,
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -326,110 +324,130 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // 4. RECENT TRANSACTIONS
+                // 4. RECENT TRANSACTIONS HEADER WITH FILTERS
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Recent Transactions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                     Row(
-                      children: [
-                        _buildFilterChip('ALL'),
-                        const SizedBox(width: 4),
-                        _buildFilterChip('INWARD'),
-                        const SizedBox(width: 4),
-                        _buildFilterChip('OUTWARD'),
-                      ],
+                      children: ['ALL', 'INWARD', 'OUTWARD'].map((f) {
+                        final isSel = _activeFilter == f;
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 4.0),
+                          child: InkWell(
+                            onTap: () => setState(() => _activeFilter = f),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isSel ? const Color(0xFFFEF3C7) : Colors.white,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: isSel ? AppTheme.goldPrimary : AppTheme.borderSubtle),
+                              ),
+                              child: Text(f, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSel ? AppTheme.goldDark : AppTheme.textMuted)),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 10),
 
-                // List of Recent Transactions
+                // 5. TRANSACTION CARDS LIST / PROPER ACTIONABLE EMPTY STATE
                 filtered.isEmpty
                     ? Container(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(28),
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.borderSubtle)),
-                        child: const Text('No transactions found matching your search.', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.borderSubtle),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'No recent transactions',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Add your first material entry to start tracking vault balances.',
+                              style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.goldPrimary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              ),
+                              icon: const Icon(Icons.add, size: 14, color: Colors.white),
+                              label: const Text('+ Add Entry', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MaterialListScreen(initialDirection: 'INWARD')),
+                              ),
+                            ),
+                          ],
+                        ),
                       )
                     : ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
-                          final item = filtered[index];
-                          final isInward = item.direction == 'INWARD';
-
+                          final m = filtered[index];
+                          final isInward = m.direction == 'INWARD';
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppTheme.borderSubtle)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: const BorderSide(color: AppTheme.borderSubtle),
+                            ),
                             child: ListTile(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              onTap: () => _showEntryDetailsModal(context, item),
                               leading: Container(
-                                width: 38,
-                                height: 38,
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
+                                  color: isInward ? const Color(0x2610B981) : const Color(0x26F43F5E),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
                                   isInward ? Icons.arrow_downward : Icons.arrow_upward,
-                                  color: isInward ? const Color(0xFF059669) : const Color(0xFFDC2626),
-                                  size: 20,
+                                  color: isInward ? AppTheme.inwardGreen : AppTheme.outwardRose,
+                                  size: 18,
                                 ),
                               ),
-                              title: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isInward ? const Color(0xFFDCFCE7) : const Color(0xFFFEF2F2),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(item.direction, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isInward ? const Color(0xFF059669) : const Color(0xFFDC2626))),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text('${item.weight} g (${item.purity ?? "24K"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
-                                ],
+                              title: Text(
+                                '${m.weight.toStringAsFixed(2)} ${m.materialType == 'gold' ? 'g' : 'ct'} (${m.purity ?? m.materialType.toUpperCase()})',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain),
                               ),
-                              subtitle: Text('${item.vendorName} • ${item.timestamp}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text('₹${item.totalAmount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
-                                  Text(item.materialType.toUpperCase(), style: const TextStyle(fontSize: 9, color: AppTheme.goldDark, fontWeight: FontWeight.bold)),
-                                ],
+                              subtitle: Text(
+                                '${m.vendorName} • ${m.timestamp}',
+                                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                              ),
+                              trailing: Text(
+                                '₹ ${m.totalAmount.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: isInward ? AppTheme.inwardGreen : AppTheme.outwardRose,
+                                ),
                               ),
                             ),
                           );
                         },
                       ),
-
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label) {
-    final isSelected = _activeFilter == label;
-    return InkWell(
-      onTap: () => setState(() => _activeFilter = label),
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFEF3C7) : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: isSelected ? AppTheme.goldPrimary : AppTheme.borderSubtle),
-        ),
-        child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSelected ? AppTheme.goldDark : AppTheme.textMuted)),
       ),
     );
   }
@@ -471,7 +489,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(999)),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgPrimary,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppTheme.borderSubtle),
+                  ),
                   child: Text(badgeText, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
                 ),
               ],
@@ -485,60 +507,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showEntryDetailsModal(BuildContext context, MaterialEntry entry) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('${entry.direction} DETAILS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: entry.direction == 'INWARD' ? const Color(0xFF059669) : const Color(0xFFDC2626))),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(12)),
-                child: Column(
-                  children: [
-                    _buildRow('Material:', entry.materialType.toUpperCase()),
-                    _buildRow('Weight:', '${entry.weight} g'),
-                    if (entry.purity != null && entry.purity!.isNotEmpty) _buildRow('Purity:', entry.purity!),
-                    _buildRow('Vendor / Karigar:', entry.vendorName),
-                    _buildRow('Timestamp:', entry.timestamp),
-                    const Divider(),
-                    _buildRow('Total Value:', '₹${entry.totalAmount.toStringAsFixed(0)}', isBold: true),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRow(String label, String value, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: AppTheme.textMain)),
-        ],
       ),
     );
   }

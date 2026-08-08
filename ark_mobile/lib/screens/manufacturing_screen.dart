@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
-import '../models/material_entry.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_manufacturer_modal.dart';
 import 'manufacturer_detail_screen.dart';
@@ -59,18 +58,47 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
-            // 2. MANUFACTURER LIST CARDS
+            // 2. MANUFACTURER LIST CARDS / PROPER EMPTY STATE
             manufacturers.isEmpty
                 ? Container(
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(36),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppTheme.borderSubtle),
                     ),
-                    child: const Text('No manufacturers added yet. Tap + Add New above to register a Karigar.', style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'No manufacturers found',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Add your first manufacturer to get started.',
+                          style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                        ),
+                        const SizedBox(height: 14),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.goldPrimary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                          ),
+                          icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                          label: const Text('+ Add New', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AddManufacturerModal(
+                                onSubmit: (mfg) => appState.addManufacturer(mfg),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   )
                 : ListView.builder(
                     shrinkWrap: true,
@@ -107,7 +135,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
                             backgroundColor: const Color(0xFF9333EA),
                             backgroundImage: mfg.photoUrl.startsWith('http') ? NetworkImage(mfg.photoUrl) : null,
                             child: !mfg.photoUrl.startsWith('http')
-                                ? Text(mfg.name.substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))
+                                ? Text(mfg.name.isNotEmpty ? mfg.name.substring(0, 1).toUpperCase() : 'M', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))
                                 : null,
                           ),
                           title: Text(mfg.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textMain)),
@@ -138,17 +166,14 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text('${mfg.jobsDone} Done', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF059669))),
-                              Text('₹${mfg.makingCharge.toStringAsFixed(0)}/g', style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
-                              const SizedBox(height: 2),
-                              const Icon(Icons.chevron_right, size: 18, color: AppTheme.textMuted),
+                              Text('Completed', style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                              Text('${mfg.jobsDone}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                             ],
                           ),
                         ),
                       );
                     },
                   ),
-
           ],
         ),
       ),

@@ -6,19 +6,13 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
 
   if (!manufacturer) return null;
 
-  // System-generated calculations
-  const goldIssued = manufacturer.goldIssued || 250.000;
-  const goldReturned = manufacturer.goldReturned || 139.500;
-  const goldRemaining = manufacturer.liveGoldRemaining || (goldIssued - goldReturned);
-  const jobsDone = manufacturer.jobsDone || 42;
-  const jobsOngoing = manufacturer.jobsOngoing || 3;
-
-  // Recent dummy/live manufacturing activity
-  const recentJobs = [
-    { id: 'JOB-9042', product: '22K Antique Royal Signet Ring', goldIssued: '14.200 g', status: 'In Progress', date: '04/08/2026' },
-    { id: 'JOB-9039', product: '18K Diamond Solitaire Bangle Set', goldIssued: '45.000 g', status: 'In Progress', date: '02/08/2026' },
-    { id: 'JOB-9021', product: '24K Temple Heritage Choker Necklace', goldIssued: '110.500 g', status: 'Completed', date: '28/07/2026' }
-  ];
+  // Real system-generated calculations derived from actual database records
+  const goldIssued = parseFloat(manufacturer.goldIssued || 0);
+  const goldReturned = parseFloat(manufacturer.goldReturned || 0);
+  const goldRemaining = parseFloat(manufacturer.liveGoldRemaining || Math.max(0, goldIssued - goldReturned));
+  const jobsDone = parseInt(manufacturer.jobsDone || 0);
+  const jobsOngoing = parseInt(manufacturer.jobsOngoing || 0);
+  const recentJobs = manufacturer.recentJobs || [];
 
   return (
     <div style={{
@@ -83,10 +77,10 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
               {manufacturer.name}
             </h3>
             <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <MapPin size={13} color="#94a3b8" /> {manufacturer.office || 'Zaveri Bazaar Workshop'}
+              <MapPin size={13} color="#94a3b8" /> {manufacturer.office || 'Artisan Workshop'}
             </p>
             <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Phone size={13} color="#94a3b8" /> {manufacturer.mobile || '+91 98765 43210'}
+              <Phone size={13} color="#94a3b8" /> {manufacturer.mobile || 'Registered Workshop'}
             </p>
             <div style={{ marginTop: '4px', fontSize: '11px', fontWeight: '800', color: '#b45309' }}>
               Default Making Charge: ₹{manufacturer.makingCharge || 450} / g
@@ -139,41 +133,47 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
             RECENT MANUFACTURING ACTIVITY
           </h4>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {recentJobs.map(job => (
-              <div key={job.id} style={{
-                padding: '10px 12px',
-                borderRadius: '12px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: '800', color: '#9333ea', background: '#faf5ff', padding: '1px 6px', borderRadius: '4px' }}>
-                      {job.id}
-                    </span>
-                    <h5 style={{ fontSize: '13px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                      {job.product}
-                    </h5>
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>
-                    Issued: {job.goldIssued} • {job.date}
-                  </p>
-                </div>
-
-                <span style={{
-                  fontSize: '10px', fontWeight: '800', padding: '3px 8px', borderRadius: '999px',
-                  background: job.status === 'Completed' ? '#dcfce7' : '#eff6ff',
-                  color: job.status === 'Completed' ? '#059669' : '#2563eb'
+          {recentJobs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', color: '#64748b', fontSize: '12px', border: '1px dashed #cbd5e1' }}>
+              No manufacturing work orders assigned to this artisan yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {recentJobs.map(job => (
+                <div key={job.id} style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
                 }}>
-                  {job.status}
-                </span>
-              </div>
-            ))}
-          </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: '800', color: '#9333ea', background: '#faf5ff', padding: '1px 6px', borderRadius: '4px' }}>
+                        #{job.jobNumber || job.id}
+                      </span>
+                      <h5 style={{ fontSize: '13px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
+                        {job.productName || job.product}
+                      </h5>
+                    </div>
+                    <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>
+                      Issued: {job.goldWeight || job.goldIssued} g • {job.timestamp || job.date}
+                    </p>
+                  </div>
+
+                  <span style={{
+                    fontSize: '10px', fontWeight: '800', padding: '3px 8px', borderRadius: '999px',
+                    background: job.status === 'Completed' ? '#dcfce7' : '#eff6ff',
+                    color: job.status === 'Completed' ? '#059669' : '#2563eb'
+                  }}>
+                    {job.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Delete Manufacturer Action (Destructive Red) */}
