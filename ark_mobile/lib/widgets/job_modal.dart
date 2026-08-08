@@ -34,14 +34,14 @@ class _JobModalState extends State<JobModal> {
   String _manufacturerId = '';
   final _productNameCtrl = TextEditingController();
 
-  // 1. Gold Section (Always starts with 24K)
+  // 1. Gold Section (Always starts with 24K, optional)
   final _goldWeightCtrl = TextEditingController();
   String _goldPurity = '24K';
 
-  // 2. Structured Diamond Section
+  // 2. Structured Diamond Section (Starts completely empty by default)
   List<DiamondItemInputData> _diamondInputs = [];
 
-  // 3. Gemstone Section (Multi-row)
+  // 3. Gemstone Section (Starts completely empty by default)
   List<Map<String, TextEditingController>> _gemstoneRows = [];
 
   // 4. Photo Attachments
@@ -53,6 +53,7 @@ class _JobModalState extends State<JobModal> {
 
   // Shortfall error message if stock insufficient
   String? _stockErrorMessage;
+  String? _validationErrorMessage;
 
   // Gold purity dropdown starts with 24K
   final List<String> _goldPurityOptions = ['24K', '22K', '18K', '14K', '9K'];
@@ -80,17 +81,6 @@ class _JobModalState extends State<JobModal> {
           customShapeCtrl: TextEditingController(text: d.customShape ?? ''),
         );
       }).toList();
-      if (_diamondInputs.isEmpty) {
-        _diamondInputs.add(
-          DiamondItemInputData(
-            id: 'd-1',
-            weightCtrl: TextEditingController(),
-            sizeMm: 2.5,
-            shape: 'Round',
-            customShapeCtrl: TextEditingController(),
-          ),
-        );
-      }
 
       _gemstoneRows = j.gemstoneItems.map((g) {
         return {
@@ -98,9 +88,6 @@ class _JobModalState extends State<JobModal> {
           'size': TextEditingController(text: g.size),
         };
       }).toList();
-      if (_gemstoneRows.isEmpty) {
-        _gemstoneRows.add({'weight': TextEditingController(), 'size': TextEditingController()});
-      }
 
       _notesCtrl.text = j.notes ?? '';
       if (j.photos.isNotEmpty) {
@@ -118,18 +105,8 @@ class _JobModalState extends State<JobModal> {
       }
 
       _goldPurity = '24K'; // Always start with 24K
-
-      _diamondInputs = [
-        DiamondItemInputData(
-          id: 'd-1',
-          weightCtrl: TextEditingController(),
-          sizeMm: 2.5,
-          shape: 'Round',
-          customShapeCtrl: TextEditingController(),
-        )
-      ];
-
-      _gemstoneRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
+      _diamondInputs = []; // No pre-filled diamond rows by default
+      _gemstoneRows = [];  // No pre-filled gemstone rows by default
     }
   }
 
@@ -141,9 +118,9 @@ class _JobModalState extends State<JobModal> {
     for (var d in _diamondInputs) {
       d.dispose();
     }
-    for (var r in _gemstoneRows) {
-      r['weight']?.dispose();
-      r['size']?.dispose();
+    for (var g in _gemstoneRows) {
+      g['weight']?.dispose();
+      g['size']?.dispose();
     }
     super.dispose();
   }
@@ -152,110 +129,124 @@ class _JobModalState extends State<JobModal> {
     setState(() {
       _diamondInputs.add(
         DiamondItemInputData(
-          id: 'd-${DateTime.now().millisecondsSinceEpoch}',
+          id: 'd-${DateTime.now().millisecondsSinceEpoch}-${_diamondInputs.length}',
           weightCtrl: TextEditingController(),
-          sizeMm: 2.5,
-          shape: 'Round',
+          sizeMm: null, // Blank / Unselected
+          shape: null,  // Blank / Unselected
           customShapeCtrl: TextEditingController(),
         ),
       );
+      _stockErrorMessage = null;
+      _validationErrorMessage = null;
     });
   }
 
   void _removeDiamondRow(int index) {
-    if (_diamondInputs.length > 1) {
-      setState(() {
-        _diamondInputs[index].dispose();
-        _diamondInputs.removeAt(index);
-      });
-    }
+    setState(() {
+      final removed = _diamondInputs.removeAt(index);
+      removed.dispose();
+      _stockErrorMessage = null;
+      _validationErrorMessage = null;
+    });
   }
 
   void _addGemstoneRow() {
     setState(() {
-      _gemstoneRows.add({'weight': TextEditingController(), 'size': TextEditingController()});
+      _gemstoneRows.add({
+        'weight': TextEditingController(),
+        'size': TextEditingController(),
+      });
+      _validationErrorMessage = null;
     });
   }
 
   void _removeGemstoneRow(int index) {
-    if (_gemstoneRows.length > 1) {
-      setState(() {
-        _gemstoneRows.removeAt(index);
-      });
+    setState(() {
+      final removed = _gemstoneRows.removeAt(index);
+      removed['weight']?.dispose();
+      removed['size']?.dispose();
+      _validationErrorMessage = null;
+    });
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      if (source == ImageSource.gallery) {
+        final List<XFile> pickedFiles = await _picker.pickMultiImage(
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
+        if (pickedFiles.isNotEmpty) {
+          final maxAllowed = 3 - _photosBase64.length;
+          for (var i = 0; i < pickedFiles.length && i < maxAllowed; i++) {
+            final bytes = await pickedFiles[i].readAsBytes();
+            final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+            setState(() {
+              _photosBase64.add(base64String);
+            });
+          }
+        }
+      } else {
+        final XFile? photo = await _picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
+        if (photo != null && _photosBase64.length < 3) {
+          final bytes = await photo.readAsBytes();
+          final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+          setState(() {
+            _photosBase64.add(base64String);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking photo: $e');
     }
   }
 
-  void _showPhotoAttachmentSheet() {
+  void _showPhotoOptionsSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Attach Photo to Job', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const Text('Attach Reference Photos (Max 3)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _pickImage(ImageSource.camera);
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.bgPrimary,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.borderSubtle),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(Icons.camera_alt_outlined, color: Color(0xFF2563EB), size: 28),
-                          SizedBox(height: 8),
-                          Text('Take Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
-                        ],
-                      ),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AppTheme.goldPrimary,
                     ),
+                    icon: const Icon(Icons.camera_alt, color: Colors.white),
+                    label: const Text('Take Photo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _pickPhoto(ImageSource.camera);
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _pickImage(ImageSource.gallery);
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.bgPrimary,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.borderSubtle),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(Icons.photo_library_outlined, color: Color(0xFF9333EA), size: 28),
-                          SizedBox(height: 8),
-                          Text('Choose Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
-                        ],
-                      ),
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: AppTheme.goldPrimary),
                     ),
+                    icon: const Icon(Icons.photo_library, color: AppTheme.goldPrimary),
+                    label: const Text('Choose Gallery', style: TextStyle(color: AppTheme.goldPrimary, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _pickPhoto(ImageSource.gallery);
+                    },
                   ),
                 ),
               ],
@@ -266,61 +257,63 @@ class _JobModalState extends State<JobModal> {
     );
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      if (source == ImageSource.camera) {
-        final XFile? image = await _picker.pickImage(source: source, imageQuality: 70);
-        if (image != null) {
-          final bytes = await image.readAsBytes();
-          setState(() {
-            if (_photosBase64.length < 3) {
-              _photosBase64.add('data:image/jpeg;base64,${base64Encode(bytes)}');
-            }
-          });
-        }
-      } else {
-        final List<XFile> images = await _picker.pickMultiImage(imageQuality: 70);
-        for (var img in images) {
-          if (_photosBase64.length >= 3) break;
-          final bytes = await img.readAsBytes();
-          _photosBase64.add('data:image/jpeg;base64,${base64Encode(bytes)}');
-        }
-        setState(() {});
-      }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
-    }
-  }
+  void _saveJob() {
+    setState(() {
+      _stockErrorMessage = null;
+      _validationErrorMessage = null;
+    });
 
-  void _submit() {
     if (_formKey.currentState!.validate()) {
       final appState = Provider.of<AppState>(context, listen: false);
       final isEditing = widget.initialJob != null;
       final parentJobId = isEditing ? widget.initialJob!.id : 'job-${DateTime.now().millisecondsSinceEpoch}';
 
-      // 1. Build Structured Diamond Items
-      final dItems = _diamondInputs
-          .where((d) => (double.tryParse(d.weightCtrl.text) ?? 0.0) > 0)
-          .map((d) => DiamondItem(
-                id: d.id,
-                parentId: parentJobId,
-                weightCt: double.tryParse(d.weightCtrl.text) ?? 0.0,
-                sizeMm: d.sizeMm,
-                shape: d.shape,
-                customShape: d.shape == 'Other' ? d.customShapeCtrl.text : null,
-              ))
-          .toList();
-
-      // 2. Validate Diamond Stock Exact Match Rule
-      final stockErr = appState.validateJobDiamondStock(dItems);
-      if (stockErr != null) {
-        setState(() {
-          _stockErrorMessage = stockErr;
-        });
-        return;
+      // 1. Validate Diamond Inputs only if diamond rows were added
+      for (int i = 0; i < _diamondInputs.length; i++) {
+        final d = _diamondInputs[i];
+        final w = double.tryParse(d.weightCtrl.text) ?? 0.0;
+        if (w <= 0) {
+          setState(() => _validationErrorMessage = 'Please enter weight for Diamond #${i + 1}');
+          return;
+        }
+        if (d.sizeMm == null) {
+          setState(() => _validationErrorMessage = 'Please select size (mm) for Diamond #${i + 1}');
+          return;
+        }
+        if (d.shape == null) {
+          setState(() => _validationErrorMessage = 'Please select shape for Diamond #${i + 1}');
+          return;
+        }
+        if (d.shape == 'Other' && d.customShapeCtrl.text.trim().isEmpty) {
+          setState(() => _validationErrorMessage = 'Please specify custom shape for Diamond #${i + 1}');
+          return;
+        }
       }
 
-      // 3. Build Gemstone Items
+      // Build structured diamond items
+      final dItems = _diamondInputs.map((d) {
+        return DiamondItem(
+          id: d.id,
+          parentId: parentJobId,
+          weightCt: double.tryParse(d.weightCtrl.text) ?? 0.0,
+          sizeMm: d.sizeMm ?? 2.5,
+          shape: d.shape ?? 'Round',
+          customShape: d.shape == 'Other' ? d.customShapeCtrl.text.trim() : null,
+        );
+      }).toList();
+
+      // Validate diamond stock only if diamonds were actually issued
+      if (dItems.isNotEmpty) {
+        final stockErr = appState.validateJobDiamondStock(dItems);
+        if (stockErr != null) {
+          setState(() {
+            _stockErrorMessage = stockErr;
+          });
+          return;
+        }
+      }
+
+      // Build gemstone items
       final gItems = _gemstoneRows
           .where((r) => r['weight']!.text.isNotEmpty || r['size']!.text.isNotEmpty)
           .map((r) => GemstoneItem(
@@ -404,6 +397,28 @@ class _JobModalState extends State<JobModal> {
                   ],
                 ),
                 const SizedBox(height: 14),
+
+                // Validation Error Alert
+                if (_validationErrorMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(_validationErrorMessage!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB91C1C))),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // Insufficient Stock Alert Banner
                 if (_stockErrorMessage != null) ...[
@@ -571,7 +586,7 @@ class _JobModalState extends State<JobModal> {
 
                 const SizedBox(height: 14),
 
-                // 2. STRUCTURED DIAMOND SECTION (+ ADD MORE)
+                // 2. STRUCTURED DIAMOND SECTION (CLEAN ZERO-ROW START)
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -582,48 +597,89 @@ class _JobModalState extends State<JobModal> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'DIAMOND ISSUED (${_diamondInputs.length} ROWS)',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'DIAMOND ISSUED (${_diamondInputs.length} ROWS)',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                          ),
+                          if (_diamondInputs.isNotEmpty)
+                            Text(
+                              'Total: ${_diamondInputs.fold(0.0, (s, d) => s + (double.tryParse(d.weightCtrl.text) ?? 0.0)).toStringAsFixed(2)} ct',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 8),
 
-                      for (int idx = 0; idx < _diamondInputs.length; idx++)
-                        Builder(
-                          builder: (context) {
-                            final d = _diamondInputs[idx];
-                            final avail = appState.getAvailableDiamondStock(d.sizeMm, d.shape, d.customShapeCtrl.text);
-                            return DiamondItemInput(
-                              index: idx,
-                              data: d,
-                              availableStock: avail,
-                              showRemove: _diamondInputs.length > 1,
-                              onRemove: () => _removeDiamondRow(idx),
-                              onWeightChanged: (_) => setState(() => _stockErrorMessage = null),
-                              onSizeChanged: (_) => setState(() => _stockErrorMessage = null),
-                              onShapeChanged: (_) => setState(() => _stockErrorMessage = null),
-                            );
-                          },
-                        ),
+                      if (_diamondInputs.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: Column(
+                            children: [
+                              const Text('No diamonds added to this job yet.', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFEFF6FF),
+                                  foregroundColor: const Color(0xFF2563EB),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFF93C5FD))),
+                                ),
+                                icon: const Icon(Icons.add, size: 14),
+                                label: const Text('+ Add Diamond Item', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                onPressed: _addDiamondRow,
+                              ),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        for (int idx = 0; idx < _diamondInputs.length; idx++)
+                          Builder(
+                            builder: (context) {
+                              final d = _diamondInputs[idx];
+                              final avail = (d.sizeMm != null && d.shape != null)
+                                  ? appState.getAvailableDiamondStock(d.sizeMm!, d.shape!, d.customShapeCtrl.text)
+                                  : null;
+                              return DiamondItemInput(
+                                index: idx,
+                                data: d,
+                                availableStock: avail,
+                                showRemove: true,
+                                onRemove: () => _removeDiamondRow(idx),
+                                onWeightChanged: (_) => setState(() => _stockErrorMessage = null),
+                                onSizeChanged: (_) => setState(() => _stockErrorMessage = null),
+                                onShapeChanged: (_) => setState(() => _stockErrorMessage = null),
+                              );
+                            },
+                          ),
 
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 38),
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(color: Color(0xFF93C5FD)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 38),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF93C5FD)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: _addDiamondRow,
+                          icon: const Icon(Icons.add, size: 15, color: Color(0xFF2563EB)),
+                          label: const Text('+ Add More Diamond Item', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
                         ),
-                        onPressed: _addDiamondRow,
-                        icon: const Icon(Icons.add, size: 15, color: Color(0xFF2563EB)),
-                        label: const Text('+ Add More Diamond Item', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                      ),
+                      ],
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 14),
 
-                // 3. GEMSTONE SECTION (+ ADD MORE)
+                // 3. GEMSTONE SECTION (CLEAN ZERO-ROW START)
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -640,98 +696,131 @@ class _JobModalState extends State<JobModal> {
                       ),
                       const SizedBox(height: 8),
 
-                      for (int idx = 0; idx < _gemstoneRows.length; idx++)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: Row(
+                      if (_gemstoneRows.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE9D5FF)),
+                          ),
+                          child: Column(
                             children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _gemstoneRows[idx]['weight'],
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
+                              const Text('No gemstones added to this job yet.', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFAF5FF),
+                                  foregroundColor: const Color(0xFF9333EA),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFD8B4FE))),
                                 ),
+                                icon: const Icon(Icons.add, size: 14),
+                                label: const Text('+ Add Gemstone Item', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                onPressed: _addGemstoneRow,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _gemstoneRows[idx]['size'],
-                                  decoration: const InputDecoration(labelText: 'Size', hintText: '5x7 mm Oval'),
-                                ),
-                              ),
-                              if (_gemstoneRows.length > 1)
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                                  onPressed: () => _removeGemstoneRow(idx),
-                                ),
                             ],
                           ),
-                        ),
+                        )
+                      else ...[
+                        for (int idx = 0; idx < _gemstoneRows.length; idx++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _gemstoneRows[idx]['weight'],
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00 ct'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _gemstoneRows[idx]['size'],
+                                    decoration: const InputDecoration(labelText: 'Size', hintText: 'e.g. 5x7 mm'),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () => _removeGemstoneRow(idx),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(8)),
+                                    child: const Icon(Icons.close, size: 16, color: Color(0xFFDC2626)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 38),
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(color: Color(0xFFD8B4FE)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 38),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFFD8B4FE)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: _addGemstoneRow,
+                          icon: const Icon(Icons.add, size: 15, color: Color(0xFF9333EA)),
+                          label: const Text('+ Add More Gemstone Size', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
                         ),
-                        onPressed: _addGemstoneRow,
-                        icon: const Icon(Icons.add, size: 15, color: Color(0xFF9333EA)),
-                        label: const Text('+ Add More Gemstone Size', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
-                      ),
+                      ],
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 14),
 
-                // 4. PHOTO ATTACHMENT SECTION
+                // 4. PHOTO ATTACHMENTS (UP TO 3 PHOTOS)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('PHOTO ATTACHMENTS (${_photosBase64.length}/3)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-                    InkWell(
-                      onTap: _showPhotoAttachmentSheet,
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(999), border: Border.all(color: const Color(0xFFBFDBFE))),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
-                            SizedBox(width: 4),
-                            Text('+ Add Photos', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                          ],
+                    if (_photosBase64.length < 3)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          side: const BorderSide(color: Color(0xFF93C5FD)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                         ),
+                        icon: const Icon(Icons.add, size: 13, color: Color(0xFF2563EB)),
+                        label: const Text('+ Add Photos', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        onPressed: _showPhotoOptionsSheet,
                       ),
-                    ),
                   ],
                 ),
 
                 if (_photosBase64.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: _photosBase64.asMap().entries.map((entry) {
                       final idx = entry.key;
-                      final b64 = entry.value;
+                      final base64Img = entry.value;
                       return Stack(
+                        clipBehavior: Clip.none,
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: b64.startsWith('http')
-                                ? Image.network(b64, width: 60, height: 60, fit: BoxFit.cover)
-                                : Image.memory(base64Decode(b64.split(',').last), width: 60, height: 60, fit: BoxFit.cover),
+                            child: Image.memory(
+                              base64Decode(base64Img.split(',').last),
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                           Positioned(
-                            top: 2, right: 2,
+                            top: -4,
+                            right: -4,
                             child: InkWell(
                               onTap: () => setState(() => _photosBase64.removeAt(idx)),
                               child: Container(
-                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                                 padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
                                 child: const Icon(Icons.close, size: 12, color: Colors.white),
                               ),
                             ),
@@ -744,15 +833,16 @@ class _JobModalState extends State<JobModal> {
 
                 const SizedBox(height: 12),
 
-                // 5. NOTES
+                // 5. NOTES (OPTIONAL)
                 TextFormField(
                   controller: _notesCtrl,
                   maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'NOTES (OPTIONAL)', hintText: 'Gold colour, customer requests, instructions...'),
+                  decoration: const InputDecoration(labelText: 'NOTES (OPTIONAL)', hintText: 'Special setting instructions, hallmark requirements...'),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
+                // SUBMIT BUTTON
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -760,9 +850,13 @@ class _JobModalState extends State<JobModal> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 2,
                     ),
-                    onPressed: _submit,
-                    child: Text(isEditing ? 'SAVE JOB CHANGES' : 'CREATE JOB', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    onPressed: _saveJob,
+                    child: Text(
+                      isEditing ? 'SAVE CHANGES' : 'CREATE JOB',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
                   ),
                 ),
 

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class DiamondItemInputData {
   String id;
   TextEditingController weightCtrl;
-  double sizeMm;
-  String shape;
+  double? sizeMm;
+  String? shape;
   TextEditingController customShapeCtrl;
 
   DiamondItemInputData({
     required this.id,
     required this.weightCtrl,
-    this.sizeMm = 2.5,
-    this.shape = 'Round',
+    this.sizeMm,
+    this.shape,
     required this.customShapeCtrl,
   });
 
@@ -29,8 +28,8 @@ class DiamondItemInput extends StatelessWidget {
   final bool showRemove;
   final double? availableStock;
   final ValueChanged<double>? onWeightChanged;
-  final ValueChanged<double>? onSizeChanged;
-  final ValueChanged<String>? onShapeChanged;
+  final ValueChanged<double?>? onSizeChanged;
+  final ValueChanged<String?>? onShapeChanged;
 
   const DiamondItemInput({
     super.key,
@@ -106,7 +105,7 @@ class DiamondItemInput extends StatelessWidget {
                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
                     ),
                   ),
-                  if (availableStock != null) ...[
+                  if (availableStock != null && data.sizeMm != null && data.shape != null) ...[
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -146,7 +145,7 @@ class DiamondItemInput extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          // Primary Inputs: Weight (ct) | Size (mm) | Shape
+          // Primary Inputs: Weight (ct) | Size (mm) | Shape (No forced pre-filled defaults)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -158,11 +157,10 @@ class DiamondItemInput extends StatelessWidget {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'Weight (ct) *',
-                    hintText: '0.25',
+                    hintText: 'e.g. 0.25',
                     suffixText: 'ct',
                     isDense: true,
                   ),
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
                   onChanged: (val) {
                     final w = double.tryParse(val) ?? 0.0;
                     if (onWeightChanged != null) onWeightChanged!(w);
@@ -172,54 +170,52 @@ class DiamondItemInput extends StatelessWidget {
 
               const SizedBox(width: 8),
 
-              // 2. Programmatic Size (0.8 mm - 11.0 mm)
+              // 2. Programmatic Size (0.8 mm - 11.0 mm) with unselected placeholder
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<double>(
-                  value: standardSizes.contains(data.sizeMm) ? data.sizeMm : 2.5,
+                  value: data.sizeMm,
                   isExpanded: true,
+                  hint: const Text('-- Size --', style: TextStyle(fontSize: 12, color: Colors.grey)),
                   decoration: const InputDecoration(
                     labelText: 'Size (mm) *',
                     isDense: true,
                   ),
                   items: standardSizes.map((s) {
-                    return DropdownMenuItem(
+                    return DropdownMenuItem<double>(
                       value: s,
                       child: Text('${s.toStringAsFixed(1)} mm', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     );
                   }).toList(),
                   onChanged: (newSize) {
-                    if (newSize != null) {
-                      data.sizeMm = newSize;
-                      if (onSizeChanged != null) onSizeChanged!(newSize);
-                    }
+                    data.sizeMm = newSize;
+                    if (onSizeChanged != null) onSizeChanged!(newSize);
                   },
                 ),
               ),
 
               const SizedBox(width: 8),
 
-              // 3. Shape Dropdown
+              // 3. Shape Dropdown with unselected placeholder
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<String>(
-                  value: standardShapes.contains(data.shape) ? data.shape : 'Round',
+                  value: data.shape,
                   isExpanded: true,
+                  hint: const Text('-- Shape --', style: TextStyle(fontSize: 12, color: Colors.grey)),
                   decoration: const InputDecoration(
                     labelText: 'Shape *',
                     isDense: true,
                   ),
                   items: standardShapes.map((sh) {
-                    return DropdownMenuItem(
+                    return DropdownMenuItem<String>(
                       value: sh,
                       child: Text(sh, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     );
                   }).toList(),
                   onChanged: (newShape) {
-                    if (newShape != null) {
-                      data.shape = newShape;
-                      if (onShapeChanged != null) onShapeChanged!(newShape);
-                    }
+                    data.shape = newShape;
+                    if (onShapeChanged != null) onShapeChanged!(newShape);
                   },
                 ),
               ),
@@ -236,7 +232,6 @@ class DiamondItemInput extends StatelessWidget {
                 hintText: 'e.g. Trilliant / Shield / Kite Cut',
                 isDense: true,
               ),
-              validator: (val) => isCustomShape && (val == null || val.isEmpty) ? 'Shape name required' : null,
               onChanged: (val) {
                 if (onShapeChanged != null) onShapeChanged!(val);
               },

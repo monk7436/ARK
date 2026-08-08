@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
@@ -13,6 +14,51 @@ class ManufacturingScreen extends StatefulWidget {
 }
 
 class _ManufacturingScreenState extends State<ManufacturingScreen> {
+  // Helper to build photo or initials avatar (e.g. JB for Jitu bhai)
+  Widget _buildAvatar(String name, String? photoUrl, {double radius = 25}) {
+    final clean = photoUrl?.trim() ?? '';
+    if (clean.isNotEmpty) {
+      if (clean.startsWith('data:image')) {
+        try {
+          final bytes = base64Decode(clean.split(',').last);
+          return CircleAvatar(
+            radius: radius,
+            backgroundImage: MemoryImage(bytes),
+          );
+        } catch (_) {}
+      } else if (clean.startsWith('http')) {
+        return CircleAvatar(
+          radius: radius,
+          backgroundImage: NetworkImage(clean),
+        );
+      }
+    }
+
+    String initials = 'MF';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      if (parts.length == 1) {
+        initials = parts[0].length >= 2 ? parts[0].substring(0, 2).toUpperCase() : parts[0].toUpperCase();
+      } else {
+        initials = '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+      }
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xFFD97706),
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: radius * 0.72,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
@@ -130,14 +176,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
                               ),
                             );
                           },
-                          leading: CircleAvatar(
-                            radius: 25,
-                            backgroundColor: const Color(0xFF9333EA),
-                            backgroundImage: mfg.photoUrl.startsWith('http') ? NetworkImage(mfg.photoUrl) : null,
-                            child: !mfg.photoUrl.startsWith('http')
-                                ? Text(mfg.name.isNotEmpty ? mfg.name.substring(0, 1).toUpperCase() : 'M', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))
-                                : null,
-                          ),
+                          leading: _buildAvatar(mfg.name, mfg.photoUrl, radius: 25),
                           title: Text(mfg.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textMain)),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +205,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text('Completed', style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                              const Text('Completed', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
                               Text('${mfg.jobsDone}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                             ],
                           ),

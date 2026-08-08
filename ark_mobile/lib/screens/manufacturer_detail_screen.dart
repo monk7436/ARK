@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/material_entry.dart';
 import '../theme/app_theme.dart';
@@ -11,6 +12,50 @@ class ManufacturerDetailScreen extends StatelessWidget {
     required this.manufacturer,
     required this.onDelete,
   });
+
+  Widget _buildAvatar(String name, String? photoUrl, {double radius = 30}) {
+    final clean = photoUrl?.trim() ?? '';
+    if (clean.isNotEmpty) {
+      if (clean.startsWith('data:image')) {
+        try {
+          final bytes = base64Decode(clean.split(',').last);
+          return CircleAvatar(
+            radius: radius,
+            backgroundImage: MemoryImage(bytes),
+          );
+        } catch (_) {}
+      } else if (clean.startsWith('http')) {
+        return CircleAvatar(
+          radius: radius,
+          backgroundImage: NetworkImage(clean),
+        );
+      }
+    }
+
+    String initials = 'MF';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      if (parts.length == 1) {
+        initials = parts[0].length >= 2 ? parts[0].substring(0, 2).toUpperCase() : parts[0].toUpperCase();
+      } else {
+        initials = '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+      }
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xFFD97706),
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: radius * 0.72,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,14 +96,7 @@ class ManufacturerDetailScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: const Color(0xFF9333EA),
-                    backgroundImage: manufacturer.photoUrl.startsWith('http') ? NetworkImage(manufacturer.photoUrl) : null,
-                    child: !manufacturer.photoUrl.startsWith('http')
-                        ? Text(manufacturer.name.substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22))
-                        : null,
-                  ),
+                  _buildAvatar(manufacturer.name, manufacturer.photoUrl, radius: 30),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(

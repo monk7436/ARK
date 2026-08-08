@@ -270,9 +270,9 @@ class _MaterialModalState extends State<MaterialModal> {
                 id: d.id,
                 parentId: parentId,
                 weightCt: w,
-                sizeMm: d.sizeMm,
-                shape: d.shape,
-                customShape: d.shape == 'Other' ? d.customShapeCtrl.text : null,
+                sizeMm: d.sizeMm ?? 2.5,
+                shape: d.shape ?? 'Round',
+                customShape: d.shape == 'Other' ? d.customShapeCtrl.text.trim() : null,
               );
             }).toList();
       } else {

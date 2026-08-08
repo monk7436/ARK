@@ -53,7 +53,7 @@ export default function AddManufacturerModal({ isOpen, onClose, onSubmit }) {
       office: office.trim(),
       makingCharge: parseFloat(makingCharge) || 450,
       notes: notes.trim(),
-      photoUrl: photos[0] || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
+      photoUrl: photos[0] || '',
       jobsDone: 0,
       jobsOngoing: 0,
       goldRemaining: 0.000

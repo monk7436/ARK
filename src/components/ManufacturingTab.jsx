@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { UserPlus, MapPin, X, Plus } from 'lucide-react';
 
+export function getManufacturerInitials(name) {
+  if (!name || !name.trim()) return 'MF';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0].length >= 2 ? parts[0].substring(0, 2).toUpperCase() : parts[0].toUpperCase();
+  }
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export default function ManufacturingTab({ manufacturers, onAddManufacturer, materials }) {
   const [activeSubTab, setActiveSubTab] = useState('profiles'); // profiles or jobs
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -8,24 +17,24 @@ export default function ManufacturingTab({ manufacturers, onAddManufacturer, mat
   // New Manufacturer form state
   const [name, setName] = useState('');
   const [office, setOffice] = useState('');
-  const [makingCharge, setMakingCharge] = useState('');
+  const [makingCharge, setMakingCharge] = useState('450');
   const [photoUrl, setPhotoUrl] = useState('');
 
   const handleCreateManufacturer = (e) => {
     e.preventDefault();
     onAddManufacturer({
       id: 'mfg-' + Date.now(),
-      name,
-      office,
-      photoUrl: photoUrl || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=300',
+      name: name.trim(),
+      office: office.trim(),
+      photoUrl: photoUrl || '', // No auto-filled fake image!
       jobsDone: 0,
       jobsOngoing: 0,
       goldRemaining: 0.000,
-      makingCharge: parseFloat(makingCharge || 0)
+      makingCharge: parseFloat(makingCharge || 450)
     });
     setName('');
     setOffice('');
-    setMakingCharge('');
+    setMakingCharge('450');
     setPhotoUrl('');
     setIsAddModalOpen(false);
   };
@@ -82,59 +91,92 @@ export default function ManufacturingTab({ manufacturers, onAddManufacturer, mat
       {/* SUB-TAB 1: MANUFACTURER PROFILES */}
       {activeSubTab === 'profiles' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-          {manufacturers.map((m) => {
-            const totalIssuedGold = materials
-              .filter(tx => tx.direction === 'OUTWARD' && (tx.vendorName === m.name || tx.manufacturerId === m.id) && tx.materialType === 'gold')
-              .reduce((acc, curr) => acc + curr.weight, 0);
+          {manufacturers.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', background: '#ffffff', padding: '36px', borderRadius: '16px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+              <h4 style={{ margin: 0, color: '#0f172a' }}>No manufacturers registered</h4>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 16px 0' }}>Add your first manufacturer to begin tracking workshop orders.</p>
+              <button onClick={() => setIsAddModalOpen(true)} className="btn-gold" style={{ fontSize: '12px' }}>
+                <Plus size={14} /> Add Manufacturer
+              </button>
+            </div>
+          ) : (
+            manufacturers.map((m) => {
+              const totalIssuedGold = materials
+                .filter(tx => tx.direction === 'OUTWARD' && (tx.vendorName === m.name || tx.manufacturerId === m.id) && tx.materialType === 'gold')
+                .reduce((acc, curr) => acc + curr.weight, 0);
 
-            const activeCount = materials.filter(tx => tx.direction === 'OUTWARD' && (tx.vendorName === m.name || tx.manufacturerId === m.id)).length;
+              const activeCount = materials.filter(tx => tx.direction === 'OUTWARD' && (tx.vendorName === m.name || tx.manufacturerId === m.id)).length;
+              const initials = getManufacturerInitials(m.name);
 
-            return (
-              <div key={m.id} className="glass-card gold-border" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                  <img
-                    src={m.photoUrl}
-                    alt={m.name}
-                    style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #d97706' }}
-                  />
-                  <div>
-                    <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{m.name}</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                      <MapPin size={14} color="#64748b" /> {m.office}
+              return (
+                <div key={m.id} className="glass-card gold-border" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    {m.photoUrl && m.photoUrl.trim().length > 0 ? (
+                      <img
+                        src={m.photoUrl}
+                        alt={m.name}
+                        style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #d97706' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #d97706, #b45309)',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: '900',
+                          fontSize: '20px',
+                          letterSpacing: '0.5px',
+                          boxShadow: '0 4px 10px rgba(217, 119, 6, 0.25)',
+                          border: '2px solid #fef3c7'
+                        }}
+                      >
+                        {initials}
+                      </div>
+                    )}
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>{m.name}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                        <MapPin size={14} color="#64748b" /> {m.office}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#b45309', marginTop: '4px', fontWeight: '600' }}>
+                        Making Charge: ₹{m.makingCharge || 450} / gram
+                      </div>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#b45309', marginTop: '2px', fontWeight: '600' }}>
-                      Making Charge: ₹{m.makingCharge} / gram
+                  </div>
+
+                  <div style={{ height: '1px', background: '#e2e8f0' }} />
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
+                    <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>24K Gold Held</div>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#b45309', marginTop: '2px' }}>
+                        {((m.goldRemaining || 0) + totalIssuedGold).toFixed(3)}g
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>Ongoing</div>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
+                        {(m.jobsOngoing || 0) + activeCount}
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>Completed</div>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#15803d', marginTop: '2px' }}>
+                        {m.jobsDone || 0}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div style={{ height: '1px', background: '#e2e8f0' }} />
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
-                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>24K Gold Held</div>
-                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#b45309', marginTop: '2px' }}>
-                      {(m.goldRemaining + totalIssuedGold).toFixed(2)}g
-                    </div>
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>Ongoing</div>
-                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
-                      {m.jobsOngoing + activeCount}
-                    </div>
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>Completed</div>
-                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#15803d', marginTop: '2px' }}>
-                      {m.jobsDone}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
@@ -143,7 +185,7 @@ export default function ManufacturingTab({ manufacturers, onAddManufacturer, mat
         <div className="modal-backdrop">
           <div className="glass-card gold-border" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>Add Manufacturer Profile</h2>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0 }}>Add Manufacturer Profile</h2>
               <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
@@ -155,7 +197,7 @@ export default function ManufacturingTab({ manufacturers, onAddManufacturer, mat
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Swarn Artistry / Ramesh Artisans"
+                  placeholder="e.g. Soni & Sons Goldsmiths"
                   className="form-input"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -167,7 +209,7 @@ export default function ManufacturingTab({ manufacturers, onAddManufacturer, mat
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Zaveri Bazaar, Mumbai / Johri Bazaar, Jaipur"
+                  placeholder="e.g. Blue Diamond Complex / Surat Hub"
                   className="form-input"
                   value={office}
                   onChange={(e) => setOffice(e.target.value)}
@@ -179,32 +221,16 @@ export default function ManufacturingTab({ manufacturers, onAddManufacturer, mat
                 <input
                   type="number"
                   required
-                  placeholder="e.g. 450"
+                  placeholder="450"
                   className="form-input"
                   value={makingCharge}
                   onChange={(e) => setMakingCharge(e.target.value)}
                 />
               </div>
 
-              <div>
-                <label className="form-label">Photo URL (Optional)</label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  className="form-input"
-                  value={photoUrl}
-                  onChange={(e) => setPhotoUrl(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-gold" style={{ flex: 1, justifyContent: 'center' }}>
-                  Save Profile
-                </button>
-              </div>
+              <button type="submit" className="btn-gold" style={{ width: '100%', padding: '14px', marginTop: '10px' }}>
+                CREATE MANUFACTURER PROFILE
+              </button>
             </form>
           </div>
         </div>

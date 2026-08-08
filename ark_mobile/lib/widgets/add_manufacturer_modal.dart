@@ -143,11 +143,12 @@ class _AddManufacturerModalState extends State<AddManufacturerModal> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
+      // Do NOT auto-fill a fake/random image. If empty, photoUrl is empty so initials avatar is displayed.
       final newMfg = Manufacturer(
         id: 'mfg-${DateTime.now().millisecondsSinceEpoch}',
         name: _nameCtrl.text.trim(),
         office: _officeCtrl.text.trim(),
-        photoUrl: _photosBase64.isNotEmpty ? _photosBase64.first : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
+        photoUrl: _photosBase64.isNotEmpty ? _photosBase64.first : '',
         jobsDone: 0,
         jobsOngoing: 0,
         goldRemaining: 0.000,
@@ -192,7 +193,7 @@ class _AddManufacturerModalState extends State<AddManufacturerModal> {
                 // Name *
                 TextFormField(
                   controller: _nameCtrl,
-                  decoration: const InputDecoration(labelText: 'MANUFACTURER NAME *', hintText: 'e.g. Ramesh Artisan Workshop'),
+                  decoration: const InputDecoration(labelText: 'MANUFACTURER NAME *', hintText: 'e.g. Soni & Sons Goldsmiths'),
                   validator: (val) => val == null || val.trim().isEmpty ? 'Name is required' : null,
                 ),
 
@@ -210,7 +211,7 @@ class _AddManufacturerModalState extends State<AddManufacturerModal> {
                 // Office Location *
                 TextFormField(
                   controller: _officeCtrl,
-                  decoration: const InputDecoration(labelText: 'OFFICE / WORKSHOP LOCATION *', hintText: 'e.g. Zaveri Bazaar, Mumbai'),
+                  decoration: const InputDecoration(labelText: 'OFFICE / WORKSHOP LOCATION *', hintText: 'e.g. Blue Diamond Complex / Surat Hub'),
                   validator: (val) => val == null || val.trim().isEmpty ? 'Location is required' : null,
                 ),
 
@@ -220,7 +221,7 @@ class _AddManufacturerModalState extends State<AddManufacturerModal> {
                 TextFormField(
                   controller: _makingChargeCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'DEFAULT MAKING CHARGE (₹ / g)', hintText: '450'),
+                  decoration: const InputDecoration(labelText: 'DEFAULT MAKING CHARGE (₹ / GRAM)', hintText: '450'),
                 ),
 
                 const SizedBox(height: 10),
@@ -232,52 +233,55 @@ class _AddManufacturerModalState extends State<AddManufacturerModal> {
                   decoration: const InputDecoration(labelText: 'NOTES (OPTIONAL)', hintText: 'Specialization, terms...'),
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
-                // Photo Capsule Button
+                // Attachments Header & Button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('PROFILE PHOTO (OPTIONAL)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    Text('PROFILE PHOTO (OPTIONAL) (${_photosBase64.length}/3)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                    if (_photosBase64.length < 3)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          side: const BorderSide(color: Color(0xFFD97706)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                        ),
+                        icon: const Icon(Icons.add_a_photo_outlined, size: 14, color: Color(0xFFD97706)),
+                        label: const Text('+ Add Photo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
+                        onPressed: _showAttachmentBottomSheet,
                       ),
-                      onPressed: _showAttachmentBottomSheet,
-                      icon: const Icon(Icons.add, size: 16, color: AppTheme.goldDark),
-                      label: const Text('+ Add Photo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
-                    ),
                   ],
                 ),
 
                 if (_photosBase64.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: _photosBase64.asMap().entries.map((entry) {
                       final idx = entry.key;
-                      final base64Str = entry.value;
+                      final base64Img = entry.value;
                       return Stack(
+                        clipBehavior: Clip.none,
                         children: [
-                          Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            width: 60, height: 60,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppTheme.borderSubtle),
-                              image: DecorationImage(
-                                image: MemoryImage(base64Decode(base64Str.split(',').last)),
-                                fit: BoxFit.cover,
-                              ),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.memory(
+                              base64Decode(base64Img.split(',').last),
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
                             ),
                           ),
                           Positioned(
-                            top: 2, right: 10,
-                            child: GestureDetector(
+                            top: -4,
+                            right: -4,
+                            child: InkWell(
                               onTap: () => setState(() => _photosBase64.removeAt(idx)),
                               child: Container(
                                 padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
                                 child: const Icon(Icons.close, size: 12, color: Colors.white),
                               ),
                             ),
@@ -290,16 +294,18 @@ class _AddManufacturerModalState extends State<AddManufacturerModal> {
 
                 const SizedBox(height: 18),
 
+                // Submit Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
+                      backgroundColor: const Color(0xFFD97706),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 2,
                     ),
                     onPressed: _submit,
-                    child: const Text('CREATE MANUFACTURER', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    child: const Text('CREATE MANUFACTURER', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                   ),
                 ),
 
