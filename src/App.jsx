@@ -338,6 +338,7 @@ export default function App() {
           <ManufacturersTab
             manufacturers={manufacturers}
             materials={materials}
+            jobs={jobs}
             onBack={() => setActiveTab('home')}
             onAddManufacturer={handleAddManufacturer}
             onDeleteManufacturer={handleDeleteManufacturer}

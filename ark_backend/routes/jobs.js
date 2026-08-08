@@ -74,7 +74,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST create new Job with automatic Diamond stock validation and automated Material OUT generation
+// POST create new Job with automatic Material OUT for Gold and Diamonds
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -94,7 +94,7 @@ router.post('/', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 1. Validate Diamond Stock Requirements
+    // 1. Validate Diamond Stock Requirements only if diamonds are included
     for (const item of diamondItems) {
       const itemWeight = parseFloat(item.weight || item.weightCt || 0);
       const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
@@ -128,7 +128,7 @@ router.post('/', async (req, res) => {
         jobNumber || '001',
         timestamp || new Date().toLocaleString('en-IN'),
         manufacturerId || null,
-        manufacturerName || 'Artisan Workshop',
+        manufacturerName || 'Karigar Workshop',
         productName || 'Custom Jewellery Order',
         parseFloat(goldWeight || 0),
         goldPurity || '24K',
@@ -138,8 +138,26 @@ router.post('/', async (req, res) => {
     );
 
     const newJob = jobRes.rows[0];
+    const parsedGoldWeight = parseFloat(goldWeight || 0);
 
-    // 3. Insert Structured Diamond Items linked to this Job
+    // 3. AUTOMATIC MATERIAL OUT FOR GOLD: If gold was issued, generate linked OUTWARD entry in materials vault
+    if (parsedGoldWeight > 0) {
+      await client.query(
+        `INSERT INTO materials (direction, material_type, weight, purity, vendor_name, manufacturer_id, job_id, notes, photo_url)
+         VALUES ('OUTWARD', 'gold', $1, $2, $3, $4, $5, $6, $7)`,
+        [
+          parsedGoldWeight,
+          goldPurity || '24K',
+          manufacturerName || 'Karigar Workshop',
+          manufacturerId || null,
+          newJob.id,
+          `Auto Gold OUT for Job #${newJob.job_number} (${newJob.product_name})`,
+          photoUrl || ''
+        ]
+      );
+    }
+
+    // 4. Insert Structured Diamond Items linked to this Job
     const savedDiamonds = [];
     let totalDiamondWeight = 0;
     if (Array.isArray(diamondItems)) {
@@ -171,14 +189,15 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 4. AUTOMATIC MATERIAL OUT: Generate linked Material OUT record for consumed Diamonds
+    // 5. AUTOMATIC MATERIAL OUT FOR DIAMONDS: Generate linked Material OUT record for consumed Diamonds
     if (savedDiamonds.length > 0) {
       const matOutRes = await client.query(
         `INSERT INTO materials (direction, material_type, weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes, photo_url)
-         VALUES ('OUTWARD', 'diamond', $1, 'Auto Issued from Vault', $2, $3, 45000, $4, $5, $6)
+         VALUES ('OUTWARD', 'diamond', $1, $2, $3, $4, 45000, $5, $6, $7)
          RETURNING id`,
         [
           totalDiamondWeight,
+          manufacturerName || 'Auto Issued from Vault',
           manufacturerId || null,
           newJob.id,
           totalDiamondWeight * 45000,
@@ -197,7 +216,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 5. Insert Gemstone Items
+    // 6. Insert Gemstone Items
     const savedGemstones = [];
     if (Array.isArray(gemstoneItems)) {
       for (const item of gemstoneItems) {
@@ -222,7 +241,7 @@ router.post('/', async (req, res) => {
     await client.query('COMMIT');
 
     res.status(201).json({
-      message: 'Job created and Diamond inventory consumed automatically',
+      message: 'Job created and material stock recorded automatically',
       job: {
         id: newJob.id,
         jobNumber: newJob.job_number,
@@ -258,7 +277,7 @@ router.put('/:id', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 1. Temporarily remove previous auto Material OUT for this Job to restore available stock
+    // 1. Temporarily remove previous auto Material OUT (both Gold and Diamond) for this Job to restore available stock
     await client.query('DELETE FROM materials WHERE job_id = $1 AND direction = \'OUTWARD\'', [id]);
 
     // 2. Validate new Diamond Stock Requirements against restored stock
@@ -295,8 +314,25 @@ router.put('/:id', async (req, res) => {
       [parseFloat(goldWeight || 0), goldPurity || '24K', notes || '', id]
     );
     const updatedJob = jobRes.rows[0];
+    const parsedGoldWeight = parseFloat(goldWeight || 0);
 
-    // 4. Replace Child Diamond Items
+    // 4. Re-generate automatic Material OUT for Gold if gold weight > 0
+    if (parsedGoldWeight > 0) {
+      await client.query(
+        `INSERT INTO materials (direction, material_type, weight, purity, vendor_name, manufacturer_id, job_id, notes)
+         VALUES ('OUTWARD', 'gold', $1, $2, $3, $4, $5, $6)`,
+        [
+          parsedGoldWeight,
+          goldPurity || '24K',
+          updatedJob.manufacturer_name || 'Karigar Workshop',
+          updatedJob.manufacturer_id || null,
+          id,
+          `Auto Gold OUT for Job #${updatedJob.job_number} (${updatedJob.product_name})`
+        ]
+      );
+    }
+
+    // 5. Replace Child Diamond Items
     await client.query('DELETE FROM job_diamond_items WHERE job_id = $1', [id]);
     const updatedDiamonds = [];
     let totalDiamondWeight = 0;
@@ -329,14 +365,15 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    // 5. Re-generate new Material OUT for the updated diamond items
+    // 6. Re-generate new Material OUT for the updated diamond items
     if (updatedDiamonds.length > 0) {
       const matOutRes = await client.query(
         `INSERT INTO materials (direction, material_type, weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes)
-         VALUES ('OUTWARD', 'diamond', $1, 'Auto Issued from Vault', $2, $3, 45000, $4, $5)
+         VALUES ('OUTWARD', 'diamond', $1, $2, $3, $4, 45000, $5, $6)
          RETURNING id`,
         [
           totalDiamondWeight,
+          updatedJob.manufacturer_name || 'Auto Issued from Vault',
           updatedJob.manufacturer_id || null,
           id,
           totalDiamondWeight * 45000,
@@ -354,7 +391,7 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    // 6. Replace Child Gemstone Items
+    // 7. Replace Child Gemstone Items
     await client.query('DELETE FROM job_gemstone_items WHERE job_id = $1', [id]);
     const updatedGemstones = [];
     if (Array.isArray(gemstoneItems)) {
@@ -380,7 +417,7 @@ router.put('/:id', async (req, res) => {
     await client.query('COMMIT');
 
     res.json({
-      message: 'Job and Diamond stock reconciled successfully',
+      message: 'Job and material stock reconciled successfully',
       jobId: id,
       diamondItems: updatedDiamonds,
       gemstoneItems: updatedGemstones
@@ -394,7 +431,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE Job (reverses consumed diamond stock automatically)
+// DELETE Job (reverses all consumed gold and diamond stock automatically)
 router.delete('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -403,7 +440,7 @@ router.delete('/:id', async (req, res) => {
     await client.query('DELETE FROM materials WHERE job_id = $1', [id]);
     await client.query('DELETE FROM jobs WHERE id = $1', [id]);
     await client.query('COMMIT');
-    res.json({ message: 'Job deleted and diamond stock returned to vault' });
+    res.json({ message: 'Job deleted and material stock returned to vault' });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Error deleting job:', err);

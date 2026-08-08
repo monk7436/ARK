@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/material_entry.dart';
+import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 
 class ManufacturerDetailScreen extends StatelessWidget {
@@ -59,15 +61,28 @@ class ManufacturerDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const double goldIssued = 250.000;
-    const double goldReturned = 139.500;
-    final double goldRemaining = manufacturer.goldRemaining > 0 ? manufacturer.goldRemaining : (goldIssued - goldReturned);
+    final appState = Provider.of<AppState>(context);
 
-    final recentJobs = [
-      {'id': 'JOB-9042', 'product': '22K Antique Royal Signet Ring', 'gold': '14.200 g', 'status': 'In Progress', 'date': '04/08/2026'},
-      {'id': 'JOB-9039', 'product': '18K Diamond Solitaire Bangle Set', 'gold': '45.000 g', 'status': 'In Progress', 'date': '02/08/2026'},
-      {'id': 'JOB-9021', 'product': '24K Temple Heritage Choker Necklace', 'gold': '110.500 g', 'status': 'Completed', 'date': '28/07/2026'},
-    ];
+    // 1. Single Source of Truth: Filter real jobs assigned to this manufacturer from AppState/Database
+    final assignedJobs = appState.jobs.where((j) =>
+      (j.manufacturerId != null && j.manufacturerId == manufacturer.id) ||
+      (j.manufacturerName.trim().toLowerCase() == manufacturer.name.trim().toLowerCase())
+    ).toList();
+
+    // 2. Real System-Generated Calculations
+    final int jobsCompleted = assignedJobs.where((j) => j.status == 'Completed').length;
+    final int jobsOngoing = assignedJobs.where((j) => j.status != 'Completed').length;
+
+    final double goldIssued = assignedJobs.fold(0.0, (sum, j) => sum + j.goldWeight);
+
+    final double goldReturned = appState.materials.where((m) =>
+      m.direction == 'INWARD' &&
+      ((m.manufacturerId != null && m.manufacturerId == manufacturer.id) ||
+       (m.vendorName.trim().toLowerCase() == manufacturer.name.trim().toLowerCase())) &&
+      m.materialType == 'gold'
+    ).fold(0.0, (sum, m) => sum + m.weight);
+
+    final double goldRemaining = (goldIssued - goldReturned) > 0 ? (goldIssued - goldReturned) : 0.0;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
@@ -108,15 +123,9 @@ class ManufacturerDetailScreen extends StatelessWidget {
                           children: [
                             const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.textMuted),
                             const SizedBox(width: 4),
-                            Text(manufacturer.office, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        const Row(
-                          children: [
-                            Icon(Icons.phone_outlined, size: 14, color: AppTheme.textMuted),
-                            SizedBox(width: 4),
-                            Text('+91 98765 43210', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                            Expanded(
+                              child: Text(manufacturer.office, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted), overflow: TextOverflow.ellipsis),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -133,7 +142,7 @@ class ManufacturerDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 18),
 
-            // Live System Statistics
+            // Live System Statistics (Derived from real database records)
             const Text('SYSTEM LIVE STATISTICS (READ-ONLY)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
             const SizedBox(height: 8),
 
@@ -145,8 +154,8 @@ class ManufacturerDetailScreen extends StatelessWidget {
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
               children: [
-                _buildStatCard('JOBS COMPLETED', '${manufacturer.jobsDone}', const Color(0xFFECFDF5), const Color(0xFF047857), const Color(0xFF065F46)),
-                _buildStatCard('JOBS ONGOING', '${manufacturer.jobsOngoing}', const Color(0xFFEFF6FF), const Color(0xFF2563EB), const Color(0xFF1E40AF)),
+                _buildStatCard('JOBS COMPLETED', '$jobsCompleted', const Color(0xFFECFDF5), const Color(0xFF047857), const Color(0xFF065F46)),
+                _buildStatCard('JOBS ONGOING', '$jobsOngoing', const Color(0xFFEFF6FF), const Color(0xFF2563EB), const Color(0xFF1E40AF)),
                 _buildStatCard('GOLD ISSUED', '${goldIssued.toStringAsFixed(3)} g', const Color(0xFFFEF3C7), const Color(0xFFB45309), const Color(0xFF92400E)),
                 _buildStatCard('GOLD RETURNED', '${goldReturned.toStringAsFixed(3)} g', const Color(0xFFF0FDF4), const Color(0xFF16A34A), const Color(0xFF15803D)),
               ],
@@ -154,6 +163,7 @@ class ManufacturerDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 10),
 
+            // Net Gold Remaining Balance
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -179,32 +189,79 @@ class ManufacturerDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Recent Manufacturing Activity
-            const Text('RECENT MANUFACTURING ACTIVITY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+            // Real Manufacturing Activity from Database
+            Text(
+              'RECENT MANUFACTURING ACTIVITY (${assignedJobs.length})',
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
+            ),
             const SizedBox(height: 8),
 
-            ...recentJobs.map((job) {
-              final isDone = job['status'] == 'Completed';
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppTheme.borderSubtle)),
-                child: ListTile(
-                  title: Text(job['product']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('Issued: ${job["gold"]} • ${job["date"]}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDone ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(12),
+            if (assignedJobs.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.borderSubtle),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.assignment_outlined, color: AppTheme.textMuted, size: 28),
+                    const SizedBox(height: 6),
+                    Text(
+                      'No jobs assigned to ${manufacturer.name} yet',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain),
                     ),
-                    child: Text(
-                      job['status']!,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDone ? const Color(0xFF059669) : const Color(0xFF2563EB)),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Create a job order to see live manufacturing tracking here.',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...assignedJobs.map((job) {
+                final isDone = job.status == 'Completed';
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppTheme.borderSubtle)),
+                  child: ListTile(
+                    title: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(6)),
+                          child: Text('#${job.jobNumber}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(job.productName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Gold: ${job.goldWeight > 0 ? '${job.goldWeight.toStringAsFixed(3)} g (${job.goldPurity})' : 'None'} • ${job.timestamp}',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                      ),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDone ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        job.status,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDone ? const Color(0xFF059669) : const Color(0xFF2563EB)),
+                      ),
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
 
             const SizedBox(height: 24),
 

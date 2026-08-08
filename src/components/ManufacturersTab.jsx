@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { ArrowLeft, Plus, Phone, MapPin, Briefcase, ChevronRight, Layers, Trash2 } from 'lucide-react';
 import AddManufacturerModal from './AddManufacturerModal';
 import ManufacturerDetailModal from './ManufacturerDetailModal';
+import { getManufacturerInitials } from './ManufacturingTab';
 
 export default function ManufacturersTab({ 
   manufacturers = [], 
   materials = [],
+  jobs = [],
   onBack,
   onAddManufacturer,
   onDeleteManufacturer
@@ -92,16 +94,28 @@ export default function ManufacturersTab({
           </div>
         ) : (
           manufacturers.map(mfg => {
-            // Calculate live statistics for this manufacturer from actual transaction history
-            const mfgMaterials = materials.filter(m => m.manufacturerId === mfg.id || (m.vendorName && m.vendorName.includes(mfg.name)));
-            const goldIssued = mfgMaterials.filter(m => m.direction === 'OUTWARD').reduce((sum, m) => sum + (parseFloat(m.weight) || 0), 0);
-            const goldReturned = mfgMaterials.filter(m => m.direction === 'INWARD').reduce((sum, m) => sum + (parseFloat(m.weight) || 0), 0);
-            const liveGoldRemaining = goldIssued > 0 ? (goldIssued - goldReturned) : (mfg.goldRemaining || 0);
+            // Calculate live statistics for this manufacturer from actual jobs & materials
+            const assignedJobs = (jobs || []).filter(j => 
+              (j.manufacturerId && j.manufacturerId === mfg.id) ||
+              (j.manufacturerName && j.manufacturerName.trim().toLowerCase() === mfg.name.trim().toLowerCase())
+            );
+
+            const mfgMaterials = (materials || []).filter(m => 
+              (m.manufacturerId && m.manufacturerId === mfg.id) || 
+              (m.vendorName && m.vendorName.trim().toLowerCase() === mfg.name.trim().toLowerCase())
+            );
+
+            const goldIssued = assignedJobs.reduce((sum, j) => sum + (parseFloat(j.goldWeight) || 0), 0);
+            const goldReturned = mfgMaterials.filter(m => m.direction === 'INWARD' && m.materialType === 'gold').reduce((sum, m) => sum + (parseFloat(m.weight) || 0), 0);
+            const liveGoldRemaining = Math.max(0, goldIssued - goldReturned);
+            const jobsOngoing = assignedJobs.filter(j => j.status !== 'Completed').length;
+            const jobsDone = assignedJobs.filter(j => j.status === 'Completed').length;
+            const initials = getManufacturerInitials(mfg.name);
 
             return (
               <div
                 key={mfg.id}
-                onClick={() => setSelectedManufacturer({ ...mfg, liveGoldRemaining, goldIssued, goldReturned })}
+                onClick={() => setSelectedManufacturer({ ...mfg, liveGoldRemaining, goldIssued, goldReturned, jobsOngoing, jobsDone })}
                 className="glass-card clickable-card"
                 style={{
                   padding: '16px',
@@ -118,7 +132,7 @@ export default function ManufacturersTab({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   {/* Profile Photo or Initials Avatar */}
-                  {mfg.photoUrl ? (
+                  {mfg.photoUrl && mfg.photoUrl.trim().length > 0 ? (
                     <img
                       src={mfg.photoUrl}
                       alt={mfg.name}
@@ -135,16 +149,16 @@ export default function ManufacturersTab({
                       width: '48px',
                       height: '48px',
                       borderRadius: '14px',
-                      background: '#fef3c7',
-                      color: '#b45309',
-                      fontWeight: '800',
+                      background: 'linear-gradient(135deg, #d97706, #b45309)',
+                      color: '#ffffff',
+                      fontWeight: '900',
                       fontSize: '18px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       border: '1px solid #fde68a'
                     }}>
-                      {mfg.name ? mfg.name.charAt(0).toUpperCase() : 'M'}
+                      {initials}
                     </div>
                   )}
 
@@ -182,7 +196,7 @@ export default function ManufacturersTab({
                         color: '#2563eb',
                         border: '1px solid #bfdbfe'
                       }}>
-                        Ongoing: {mfg.jobsOngoing || 0}
+                        Ongoing: {jobsOngoing}
                       </span>
 
                       <span style={{
@@ -194,7 +208,7 @@ export default function ManufacturersTab({
                         color: '#059669',
                         border: '1px solid #a7f3d0'
                       }}>
-                        Done: {mfg.jobsDone || 0}
+                        Done: {jobsDone}
                       </span>
                     </div>
                   </div>
@@ -224,6 +238,8 @@ export default function ManufacturersTab({
       {selectedManufacturer && (
         <ManufacturerDetailModal
           manufacturer={selectedManufacturer}
+          jobs={jobs}
+          materials={materials}
           onClose={() => setSelectedManufacturer(null)}
           onDelete={(id) => {
             onDeleteManufacturer(id);

@@ -79,24 +79,27 @@ class AppState extends ChangeNotifier {
     double issued = 0.0;
 
     for (final mat in _materials) {
-      for (final d in mat.diamondItems) {
-        final dSize = double.parse(d.sizeMm.toStringAsFixed(1));
-        final dShape = d.effectiveShape;
+      if (mat.materialType == 'diamond') {
+        for (final d in mat.diamondItems) {
+          final dSize = double.parse(d.sizeMm.toStringAsFixed(1));
+          final dShape = d.effectiveShape;
 
-        if (dSize == sizeKey && dShape.toLowerCase() == shapeKey.toLowerCase()) {
-          if (mat.direction == 'INWARD') {
-            received += d.weightCt;
-          } else {
-            issued += d.weightCt;
+          if (dSize == sizeKey && dShape.toLowerCase() == shapeKey.toLowerCase()) {
+            if (mat.direction == 'INWARD') {
+              received += d.weightCt;
+            } else if (mat.direction == 'OUTWARD') {
+              issued += d.weightCt;
+            }
           }
         }
       }
     }
 
-    return (received - issued) > 0 ? (received - issued) : 0.0;
+    final balance = received - issued;
+    return balance > 0 ? balance : 0.0;
   }
 
-  // Group diamond inventory by Size (mm) -> Shape -> Stock Breakdown
+  // Live aggregate diamond stock map
   Map<String, List<DiamondStockInfo>> getGroupedDiamondStock() {
     final Map<String, Map<String, List<double>>> aggregator = {};
 
@@ -184,7 +187,7 @@ class AppState extends ChangeNotifier {
   // Job Mutations
   void addJob(JobEntry job) {
     _jobs.insert(0, job);
-    recordJobDiamondOutward(job);
+    recordJobMaterialOutward(job);
     notifyListeners();
     ApiService.createJob(job);
   }
@@ -193,7 +196,7 @@ class AppState extends ChangeNotifier {
     final index = _jobs.indexWhere((j) => j.id == job.id);
     if (index != -1) {
       _jobs[index] = job;
-      recordJobDiamondOutward(job);
+      recordJobMaterialOutward(job);
       notifyListeners();
       ApiService.createJob(job);
     }
@@ -206,32 +209,56 @@ class AppState extends ChangeNotifier {
     ApiService.createManufacturer(mfg);
   }
 
-  // Automatically record linked Material OUT when a Job with diamonds is created/edited
-  void recordJobDiamondOutward(JobEntry job) {
+  // Automatically record linked Material OUT for Gold & Diamonds when a Job is created/edited
+  void recordJobMaterialOutward(JobEntry job) {
     // 1. Remove previous auto-outward if editing
-    _materials.removeWhere((m) => m.id == 'auto-out-${job.id}');
+    _materials.removeWhere((m) => m.id == 'auto-out-diamond-${job.id}' || m.id == 'auto-out-gold-${job.id}' || m.id == 'auto-out-${job.id}');
 
-    // 2. Insert new auto-outward if job has diamond items
+    // 2. Insert Gold OUTWARD entry if job has goldWeight > 0
+    if (job.goldWeight > 0) {
+      final goldOutEntry = MaterialEntry(
+        id: 'auto-out-gold-${job.id}',
+        timestamp: job.timestamp,
+        direction: 'OUTWARD',
+        materialType: 'gold',
+        weight: job.goldWeight,
+        purity: job.goldPurity,
+        vendorName: job.manufacturerName,
+        manufacturerId: job.manufacturerId,
+        price: 0,
+        totalAmount: 0,
+        productType: job.productName,
+        photoUrl: job.photoUrl,
+        notes: 'Auto Gold OUT for Job #${job.jobNumber} (${job.productName})',
+      );
+      _materials.insert(0, goldOutEntry);
+    }
+
+    // 3. Insert Diamond OUTWARD entry if job has diamond items
     if (job.diamondItems.isNotEmpty) {
       final double totalWeight = job.diamondItems.fold(0.0, (s, d) => s + d.weightCt);
-      final outEntry = MaterialEntry(
-        id: 'auto-out-${job.id}',
+      final diamondOutEntry = MaterialEntry(
+        id: 'auto-out-diamond-${job.id}',
         timestamp: job.timestamp,
         direction: 'OUTWARD',
         materialType: 'diamond',
         weight: totalWeight,
-        vendorName: 'Auto Issued from Vault',
+        vendorName: job.manufacturerName.isNotEmpty ? job.manufacturerName : 'Auto Issued from Vault',
         manufacturerId: job.manufacturerId,
         price: 45000,
         totalAmount: totalWeight * 45000,
         productType: job.productName,
         photoUrl: job.photoUrl,
         diamondItems: job.diamondItems,
+        notes: 'Auto Material OUT for Job #${job.jobNumber} (${job.productName})',
       );
-      _materials.insert(0, outEntry);
+      _materials.insert(0, diamondOutEntry);
     }
+
     notifyListeners();
   }
+
+  void recordJobDiamondOutward(JobEntry job) => recordJobMaterialOutward(job);
 
   // Inventory Mutations
   void addInventoryItem(InventoryItem item) {

@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
 import { X, MapPin, Phone, Briefcase, Trash2, AlertTriangle, Layers, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { getManufacturerInitials } from './ManufacturingTab';
 
-export default function ManufacturerDetailModal({ manufacturer, onClose, onDelete }) {
+export default function ManufacturerDetailModal({ manufacturer, jobs = [], materials = [], onClose, onDelete }) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   if (!manufacturer) return null;
 
-  // Real system-generated calculations derived from actual database records
-  const goldIssued = parseFloat(manufacturer.goldIssued || 0);
-  const goldReturned = parseFloat(manufacturer.goldReturned || 0);
-  const goldRemaining = parseFloat(manufacturer.liveGoldRemaining || Math.max(0, goldIssued - goldReturned));
-  const jobsDone = parseInt(manufacturer.jobsDone || 0);
-  const jobsOngoing = parseInt(manufacturer.jobsOngoing || 0);
-  const recentJobs = manufacturer.recentJobs || [];
+  // 1. Single Source of Truth: Derive all statistics from actual jobs and materials
+  const assignedJobs = (jobs || []).filter(j => 
+    (j.manufacturerId && j.manufacturerId === manufacturer.id) ||
+    (j.manufacturerName && j.manufacturerName.trim().toLowerCase() === manufacturer.name.trim().toLowerCase())
+  );
+
+  const jobsDone = assignedJobs.filter(j => j.status === 'Completed').length;
+  const jobsOngoing = assignedJobs.filter(j => j.status !== 'Completed').length;
+  const goldIssued = assignedJobs.reduce((sum, j) => sum + (parseFloat(j.goldWeight) || 0), 0);
+
+  const goldReturned = (materials || []).filter(m => 
+    m.direction === 'INWARD' && 
+    ((m.manufacturerId && m.manufacturerId === manufacturer.id) || (m.vendorName && m.vendorName.trim().toLowerCase() === manufacturer.name.trim().toLowerCase())) &&
+    m.materialType === 'gold'
+  ).reduce((sum, m) => sum + (parseFloat(m.weight) || 0), 0);
+
+  const goldRemaining = Math.max(0, goldIssued - goldReturned);
+  const initials = getManufacturerInitials(manufacturer.name);
 
   return (
     <div style={{
@@ -59,16 +71,18 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
           border: '1px solid #e2e8f0',
           marginBottom: '16px'
         }}>
-          {manufacturer.photoUrl ? (
-            <img src={manufacturer.photoUrl} alt={manufacturer.name} style={{ width: '64px', height: '64px', borderRadius: '16px', objectFit: 'cover', border: '1px solid #cbd5e1' }} />
+          {manufacturer.photoUrl && manufacturer.photoUrl.trim().length > 0 ? (
+            <img src={manufacturer.photoUrl} alt={manufacturer.name} style={{ width: '64px', height: '64px', borderRadius: '16px', objectFit: 'cover', border: '2px solid #d97706' }} />
           ) : (
             <div style={{
               width: '64px', height: '64px', borderRadius: '16px',
-              background: 'linear-gradient(135deg, #9333ea 0%, #6b21a8 100%)',
-              color: '#ffffff', fontWeight: '800', fontSize: '24px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
+              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+              color: '#ffffff', fontWeight: '900', fontSize: '22px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 10px rgba(217, 119, 6, 0.25)',
+              border: '2px solid #fef3c7'
             }}>
-              {manufacturer.name ? manufacturer.name.charAt(0).toUpperCase() : 'K'}
+              {initials}
             </div>
           )}
 
@@ -127,19 +141,19 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
           </div>
         </div>
 
-        {/* Recent Manufacturing Activity */}
+        {/* Real Manufacturing Activity from Database */}
         <div style={{ marginBottom: '20px' }}>
           <h4 style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
-            RECENT MANUFACTURING ACTIVITY
+            RECENT MANUFACTURING ACTIVITY ({assignedJobs.length})
           </h4>
 
-          {recentJobs.length === 0 ? (
+          {assignedJobs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', color: '#64748b', fontSize: '12px', border: '1px dashed #cbd5e1' }}>
               No manufacturing work orders assigned to this artisan yet.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {recentJobs.map(job => (
+              {assignedJobs.map(job => (
                 <div key={job.id} style={{
                   padding: '10px 12px',
                   borderRadius: '12px',
@@ -151,15 +165,15 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
                 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: '800', color: '#9333ea', background: '#faf5ff', padding: '1px 6px', borderRadius: '4px' }}>
-                        #{job.jobNumber || job.id}
+                      <span style={{ fontSize: '10px', fontWeight: '800', color: '#2563eb', background: '#eff6ff', padding: '1px 6px', borderRadius: '4px' }}>
+                        #{job.jobNumber}
                       </span>
                       <h5 style={{ fontSize: '13px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                        {job.productName || job.product}
+                        {job.productName}
                       </h5>
                     </div>
                     <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>
-                      Issued: {job.goldWeight || job.goldIssued} g • {job.timestamp || job.date}
+                      Issued: {job.goldWeight > 0 ? `${job.goldWeight.toFixed(3)} g (${job.goldPurity || '24K'})` : 'None'} • {job.timestamp}
                     </p>
                   </div>
 
@@ -168,7 +182,7 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
                     background: job.status === 'Completed' ? '#dcfce7' : '#eff6ff',
                     color: job.status === 'Completed' ? '#059669' : '#2563eb'
                   }}>
-                    {job.status}
+                    {job.status || 'In Progress'}
                   </span>
                 </div>
               ))}
@@ -176,59 +190,53 @@ export default function ManufacturerDetailModal({ manufacturer, onClose, onDelet
           )}
         </div>
 
-        {/* Delete Manufacturer Action (Destructive Red) */}
+        {/* Delete Manufacturer Action */}
         <div style={{ paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
-          <button
-            onClick={() => setShowConfirmDelete(true)}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '12px',
-              background: '#fef2f2',
-              color: '#dc2626',
-              border: '1px solid #fca5a5',
-              fontSize: '13.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <Trash2 size={16} /> Delete Manufacturer
-          </button>
+          {showConfirmDelete ? (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc2626', fontWeight: '700', fontSize: '12px' }}>
+                <AlertTriangle size={16} /> Confirm Deletion?
+              </div>
+              <p style={{ fontSize: '11px', color: '#991b1b', margin: 0 }}>
+                Are you sure you want to delete {manufacturer.name}? This cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmDelete(false)}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDelete(manufacturer.id);
+                    onClose();
+                  }}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', background: '#dc2626', color: '#ffffff', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowConfirmDelete(true)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '12px',
+                border: '1.5px solid #dc2626', background: '#fef2f2', color: '#dc2626',
+                fontSize: '13px', fontWeight: '800', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+              }}
+            >
+              <Trash2 size={16} /> Delete Manufacturer Profile
+            </button>
+          )}
         </div>
 
       </div>
-
-      {/* Confirmation Dialog for Delete */}
-      {showConfirmDelete && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)', zIndex: 3500,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-        }}>
-          <div style={{ background: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '380px', padding: '24px', textAlign: 'center' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
-              <AlertTriangle size={24} />
-            </div>
-            <h4 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Delete Manufacturer?</h4>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '8px 0 20px 0' }}>
-              Are you sure you want to delete <strong>{manufacturer.name}</strong>? This action cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setShowConfirmDelete(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#ffffff', fontWeight: '700', cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button onClick={() => onDelete(manufacturer.id)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#dc2626', color: '#ffffff', fontWeight: '800', cursor: 'pointer' }}>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
