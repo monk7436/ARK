@@ -35,6 +35,9 @@ class _JobModalState extends State<JobModal> {
   // Multi-row Gemstone items
   List<Map<String, TextEditingController>> _gemstoneRows = [];
 
+  // Photo Attachments (up to 3 photos)
+  List<String> _photos = [];
+
   // Purity dropdown always starts with 24K
   final List<String> _goldPurityOptions = ['24K', '22K', '18K', '14K', '9K'];
 
@@ -73,6 +76,13 @@ class _JobModalState extends State<JobModal> {
         _gemstoneRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
       }
 
+      final pList = j['photos'] as List<dynamic>? ?? [];
+      if (pList.isNotEmpty) {
+        _photos = pList.map((p) => p.toString()).toList();
+      } else if (j['photoUrl'] != null && j['photoUrl'].toString().isNotEmpty) {
+        _photos = [j['photoUrl'].toString()];
+      }
+
     } else {
       _jobNumber = widget.nextJobNumber;
       final now = DateTime.now();
@@ -87,6 +97,7 @@ class _JobModalState extends State<JobModal> {
       _goldPurity = '24K'; // Always start with 24K on new form
       _diamondRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
       _gemstoneRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
+      _photos = [];
     }
   }
 
@@ -118,6 +129,98 @@ class _JobModalState extends State<JobModal> {
     }
   }
 
+  void _showPhotoPickerSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Attach Photo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _addSamplePhoto('https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400');
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.bgPrimary,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.borderSubtle),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.camera_alt_outlined, size: 28, color: Color(0xFF2563EB)),
+                            SizedBox(height: 6),
+                            Text('Take Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textMain)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _addSamplePhoto('https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400');
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.bgPrimary,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.borderSubtle),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.photo_library_outlined, size: 28, color: Color(0xFF9333EA)),
+                            SizedBox(height: 6),
+                            Text('Choose Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textMain)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _addSamplePhoto(String url) {
+    if (_photos.length < 3) {
+      setState(() {
+        _photos.add(url);
+      });
+    }
+  }
+
+  void _removePhoto(int index) {
+    setState(() {
+      _photos.removeAt(index);
+    });
+  }
+
   @override
   void dispose() {
     _productNameCtrl.dispose();
@@ -135,7 +238,7 @@ class _JobModalState extends State<JobModal> {
   }
 
   void _submit() {
-    // 100% Type-safe Karigar name retrieval (prevents () => Null TypeError)
+    // 100% Type-safe Karigar name retrieval
     String mfgName = 'Artisan Workshop';
     if (_selectedManufacturerId != null) {
       for (final m in widget.manufacturers) {
@@ -168,6 +271,8 @@ class _JobModalState extends State<JobModal> {
       'diamondRows': dData,
       'gemstoneRows': gData,
       'notes': _notesCtrl.text,
+      'photoUrl': _photos.isNotEmpty ? _photos.first : '',
+      'photos': _photos,
       'status': isEditing ? widget.initialJob!['status'] : 'In Progress',
     };
 
@@ -420,7 +525,81 @@ class _JobModalState extends State<JobModal> {
 
                 const SizedBox(height: 12),
 
-                // NOTES
+                // 4. PHOTO ATTACHMENT CAPSULE WORKFLOW (SIMILAR TO MATERIAL IN FORM)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.borderSubtle),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('PHOTO ATTACHMENTS (${_photos.length}/3)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                          InkWell(
+                            onTap: _showPhotoPickerSheet,
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.bgPrimary,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: AppTheme.borderSubtle),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                                  SizedBox(width: 4),
+                                  Text('+ Add Photos', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_photos.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _photos.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final url = entry.value;
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(url, width: 60, height: 60, fit: BoxFit.cover),
+                                ),
+                                Positioned(
+                                  top: 2,
+                                  right: 2,
+                                  child: InkWell(
+                                    onTap: () => _removePhoto(idx),
+                                    child: Container(
+                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                      padding: const EdgeInsets.all(2),
+                                      child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 5. NOTES
                 TextFormField(
                   controller: _notesCtrl,
                   maxLines: 2,

@@ -26,6 +26,8 @@ class _JobsScreenState extends State<JobsScreen> {
       'diamondRows': [],
       'gemstoneRows': [{'weight': '2.50', 'size': 'Emerald 5x7 mm'}],
       'notes': 'Traditional Nakshi work',
+      'photoUrl': 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
+      'photos': ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'],
       'status': 'Completed'
     },
     {
@@ -40,6 +42,8 @@ class _JobsScreenState extends State<JobsScreen> {
       'diamondRows': [{'weight': '1.20', 'size': '0.10 ct'}, {'weight': '0.80', 'size': '0.05 ct'}],
       'gemstoneRows': [],
       'notes': 'White Gold Rhodium plating requested',
+      'photoUrl': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
+      'photos': ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'],
       'status': 'In Progress'
     },
     {
@@ -54,6 +58,8 @@ class _JobsScreenState extends State<JobsScreen> {
       'diamondRows': [{'weight': '0.25', 'size': '0.25 ct'}],
       'gemstoneRows': [{'weight': '0.10', 'size': 'Ruby 3mm'}],
       'notes': 'Yellow Gold finish with antique polish',
+      'photoUrl': '',
+      'photos': [],
       'status': 'In Progress'
     },
   ];
@@ -138,6 +144,7 @@ class _JobsScreenState extends State<JobsScreen> {
 
                       final List dList = job['diamondRows'] ?? [];
                       final List gList = job['gemstoneRows'] ?? [];
+                      final String photoUrl = (job['photoUrl'] ?? '').toString();
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -152,6 +159,13 @@ class _JobsScreenState extends State<JobsScreen> {
                                 children: [
                                   Row(
                                     children: [
+                                      if (photoUrl.isNotEmpty) ...[
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(photoUrl, width: 36, height: 36, fit: BoxFit.cover),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                         decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFBFDBFE))),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Calendar, Lock, Hash } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Lock, Hash, Camera, Image as ImageIcon } from 'lucide-react';
 
 export default function JobModal({
   isOpen,
@@ -31,6 +31,10 @@ export default function JobModal({
     { id: 'g-1', weight: '', size: '' }
   ]);
 
+  // Photo Attachments (up to 3 photos)
+  const [photos, setPhotos] = useState([]);
+  const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
+
   // Notes
   const [notes, setNotes] = useState('');
 
@@ -49,6 +53,13 @@ export default function JobModal({
         setDiamondRows(initialJob.diamondRows && initialJob.diamondRows.length > 0 ? initialJob.diamondRows : [{ id: 'd-1', weight: '', size: '' }]);
         setGemstoneRows(initialJob.gemstoneRows && initialJob.gemstoneRows.length > 0 ? initialJob.gemstoneRows : [{ id: 'g-1', weight: '', size: '' }]);
         setNotes(initialJob.notes || '');
+        if (initialJob.photos && initialJob.photos.length > 0) {
+          setPhotos(initialJob.photos);
+        } else if (initialJob.photoUrl) {
+          setPhotos([initialJob.photoUrl]);
+        } else {
+          setPhotos([]);
+        }
       } else {
         setJobNumber(nextJobNumber);
         const now = new Date();
@@ -63,6 +74,7 @@ export default function JobModal({
         setGoldPurity('24K'); // Always start with 24K
         setDiamondRows([{ id: 'd-1', weight: '', size: '' }]);
         setGemstoneRows([{ id: 'g-1', weight: '', size: '' }]);
+        setPhotos([]);
         setNotes('');
       }
     }
@@ -96,6 +108,23 @@ export default function JobModal({
     setGemstoneRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
   };
 
+  const handlePhotoUpload = (e, source) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      const maxAllowed = source === 'camera' ? 1 : 3;
+      files.slice(0, maxAllowed - photos.length).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => setPhotos(prev => [...prev, reader.result].slice(0, 3));
+        reader.readAsDataURL(file);
+      });
+    }
+    setIsPhotoSheetOpen(false);
+  };
+
+  const handleRemovePhoto = (index) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -114,6 +143,8 @@ export default function JobModal({
       diamondRows: diamondRows.filter(r => r.weight || r.size),
       gemstoneRows: gemstoneRows.filter(r => r.weight || r.size),
       notes,
+      photoUrl: photos[0] || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
+      photos,
       status: initialJob ? initialJob.status : 'In Progress'
     };
 
@@ -364,7 +395,40 @@ export default function JobModal({
             </button>
           </div>
 
-          {/* 4. NOTES */}
+          {/* 4. PHOTO ATTACHMENT SECTION (SIMILAR TO MATERIAL FORM) */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '800', color: '#475569' }}>
+                PHOTO ATTACHMENTS ({photos.length}/3)
+              </label>
+
+              <button
+                type="button" onClick={() => setIsPhotoSheetOpen(true)}
+                style={{
+                  background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '999px',
+                  padding: '6px 14px', fontSize: '12px', fontWeight: '800', color: '#0f172a',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                <Plus size={14} color="#2563eb" /> Add Photos
+              </button>
+            </div>
+
+            {photos.length > 0 && (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '8px' }}>
+                {photos.map((url, idx) => (
+                  <div key={idx} style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                    <img src={url} alt="Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button type="button" onClick={() => handleRemovePhoto(idx)} style={{ position: 'absolute', top: '3px', right: '3px', background: 'rgba(220, 38, 38, 0.95)', color: '#ffffff', border: 'none', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 5. NOTES */}
           <div>
             <label style={{ fontSize: '12px', fontWeight: '800', color: '#475569' }}>NOTES (OPTIONAL)</label>
             <textarea
@@ -391,6 +455,31 @@ export default function JobModal({
         </form>
 
       </div>
+
+      {/* Modern Photo Attachment Bottom Sheet for Web */}
+      {isPhotoSheetOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 3000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center'
+        }}>
+          <div style={{ background: '#ffffff', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', width: '100%', maxWidth: '480px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Attach Photo to Job</h4>
+              <button onClick={() => setIsPhotoSheetOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <label style={{ padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', color: '#0f172a' }}>
+                <Camera size={26} color="#2563eb" /> Take Photo
+                <input type="file" accept="image/*" capture="environment" onChange={(e) => handlePhotoUpload(e, 'camera')} style={{ display: 'none' }} />
+              </label>
+              <label style={{ padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', color: '#0f172a' }}>
+                <ImageIcon size={26} color="#9333ea" /> Choose Gallery
+                <input type="file" accept="image/*" multiple onChange={(e) => handlePhotoUpload(e, 'gallery')} style={{ display: 'none' }} />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

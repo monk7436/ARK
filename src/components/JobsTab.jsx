@@ -20,6 +20,8 @@ export default function JobsTab({
       diamondRows: [],
       gemstoneRows: [{ id: 'g-1', weight: '2.50', size: 'Emerald 5x7 mm' }],
       notes: 'Traditional Nakshi work',
+      photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
+      photos: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'],
       status: 'Completed'
     },
     {
@@ -34,6 +36,8 @@ export default function JobsTab({
       diamondRows: [{ id: 'd-1', weight: '1.20', size: '0.10 ct' }, { id: 'd-2', weight: '0.80', size: '0.05 ct' }],
       gemstoneRows: [],
       notes: 'White Gold Rhodium plating requested by customer',
+      photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
+      photos: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'],
       status: 'In Progress'
     },
     {
@@ -48,6 +52,8 @@ export default function JobsTab({
       diamondRows: [{ id: 'd-1', weight: '0.25', size: '0.25 ct' }],
       gemstoneRows: [{ id: 'g-1', weight: '0.10', size: 'Ruby 3mm' }],
       notes: 'Yellow Gold finish with antique polish',
+      photoUrl: '',
+      photos: [],
       status: 'In Progress'
     }
   ]);
@@ -131,6 +137,7 @@ export default function JobsTab({
         ) : (
           jobs.map(job => {
             const isCompleted = job.status === 'Completed';
+            const photoSrc = job.photoUrl || (job.photos && job.photos[0]);
 
             return (
               <div
@@ -148,13 +155,24 @@ export default function JobsTab({
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '900', color: '#2563eb', background: '#eff6ff', padding: '3px 10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                      #{job.jobNumber}
-                    </span>
-                    <h4 style={{ fontSize: '15px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                      {job.productName}
-                    </h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {photoSrc && (
+                      <img 
+                        src={photoSrc} 
+                        alt="Product Preview" 
+                        style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
+                      />
+                    )}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '900', color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                          #{job.jobNumber}
+                        </span>
+                        <h4 style={{ fontSize: '15px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
+                          {job.productName}
+                        </h4>
+                      </div>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
