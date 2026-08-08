@@ -27,7 +27,7 @@ class _JobModalState extends State<JobModal> {
   String? _selectedManufacturerId;
   final _productNameCtrl = TextEditingController();
   final _goldWeightCtrl = TextEditingController();
-  String _goldPurity = '22K';
+  String _goldPurity = '24K'; // Always starts with 24K
   final _notesCtrl = TextEditingController();
 
   // Multi-row Diamond items
@@ -35,6 +35,7 @@ class _JobModalState extends State<JobModal> {
   // Multi-row Gemstone items
   List<Map<String, TextEditingController>> _gemstoneRows = [];
 
+  // Purity dropdown always starts with 24K
   final List<String> _goldPurityOptions = ['24K', '22K', '18K', '14K', '9K'];
 
   @override
@@ -48,8 +49,8 @@ class _JobModalState extends State<JobModal> {
       _dateTime = j['timestamp'] ?? '';
       _selectedManufacturerId = j['manufacturerId'];
       _productNameCtrl.text = j['productName'] ?? '';
-      _goldWeightCtrl.text = j['goldWeight']?.toString() ?? '';
-      _goldPurity = j['goldPurity'] ?? '22K';
+      _goldWeightCtrl.text = j['goldWeight'] != null && j['goldWeight'] > 0 ? j['goldWeight'].toString() : '';
+      _goldPurity = j['goldPurity'] ?? '24K';
       _notesCtrl.text = j['notes'] ?? '';
 
       final dList = j['diamondRows'] as List<dynamic>? ?? [];
@@ -75,10 +76,15 @@ class _JobModalState extends State<JobModal> {
     } else {
       _jobNumber = widget.nextJobNumber;
       final now = DateTime.now();
-      _dateTime = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}, ${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}";
+      final minuteStr = now.minute.toString().padLeft(2, '0');
+      final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
+      final amPm = now.hour >= 12 ? 'PM' : 'AM';
+      _dateTime = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}, $hour12:$minuteStr $amPm";
+      
       if (widget.manufacturers.isNotEmpty) {
         _selectedManufacturerId = widget.manufacturers.first.id;
       }
+      _goldPurity = '24K'; // Always start with 24K on new form
       _diamondRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
       _gemstoneRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
     }
@@ -129,13 +135,15 @@ class _JobModalState extends State<JobModal> {
   }
 
   void _submit() {
+    // 100% Type-safe Karigar name retrieval (prevents () => Null TypeError)
     String mfgName = 'Artisan Workshop';
     if (_selectedManufacturerId != null) {
-      final mfg = widget.manufacturers.firstWhere(
-        (m) => m.id == _selectedManufacturerId,
-        orElse: () => null,
-      );
-      if (mfg != null) mfgName = mfg.name;
+      for (final m in widget.manufacturers) {
+        if (m.id == _selectedManufacturerId) {
+          mfgName = m.name;
+          break;
+        }
+      }
     }
 
     final dData = _diamondRows
@@ -170,256 +178,272 @@ class _JobModalState extends State<JobModal> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 460),
-        padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(isEditing ? 'EDIT JOB' : 'NEW MANUFACTURING JOB', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                      Text(isEditing ? 'Edit Job #$_jobNumber' : 'Create Job #$_jobNumber', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
-                    ],
-                  ),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // LOCKED JOB NUMBER & TIMESTAMP
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.borderSubtle)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('JOB NUMBER (AUTO)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('#$_jobNumber', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                              const Icon(Icons.lock, size: 14, color: AppTheme.textMuted),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.borderSubtle)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('DATE & TIME', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(child: Text(_dateTime, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppTheme.textMain), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              const Icon(Icons.lock, size: 14, color: AppTheme.textMuted),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              if (!isEditing) ...[
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedManufacturerId,
-                  decoration: const InputDecoration(labelText: 'ASSIGNED KARIGAR'),
-                  items: widget.manufacturers.map((m) {
-                    return DropdownMenuItem<String>(value: m.id as String, child: Text('${m.name} (${m.office})'));
-                  }).toList(),
-                  onChanged: (val) => setState(() => _selectedManufacturerId = val),
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _productNameCtrl,
-                  decoration: const InputDecoration(labelText: 'PRODUCT NAME / ITEM TYPE', hintText: 'e.g. 22K Antique Ring'),
-                ),
-              ],
-
-              const SizedBox(height: 14),
-
-              // 1. GOLD SECTION (OPTIONAL)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFFFFBE8), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFFEF08A))),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('GOLD ISSUED (OPTIONAL)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
-                    const SizedBox(height: 8),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _goldWeightCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(labelText: 'WEIGHT (g)', hintText: '0.000'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _goldPurity,
-                            decoration: const InputDecoration(labelText: 'PURITY'),
-                            items: _goldPurityOptions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                            onChanged: (val) => setState(() => _goldPurity = val!),
-                          ),
-                        ),
+                        Text(isEditing ? 'EDIT JOB' : 'NEW MANUFACTURING JOB', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        Text(isEditing ? 'Edit Job #$_jobNumber' : 'Create Job #$_jobNumber', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                       ],
                     ),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                   ],
                 ),
-              ),
+                const SizedBox(height: 14),
 
-              const SizedBox(height: 12),
-
-              // 2. DIAMOND SECTION (MULTI-ROW WITH + ADD MORE)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFBFDBFE))),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // LOCKED JOB NUMBER & TIMESTAMP
+                Row(
                   children: [
-                    Text('DIAMOND ISSUED (${_diamondRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
-                    const SizedBox(height: 8),
-
-                    for (int idx = 0; idx < _diamondRows.length; idx++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Row(
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.borderSubtle)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _diamondRows[idx]['weight'],
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
-                              ),
+                            const Text('JOB NUMBER (AUTO)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                            const SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('#$_jobNumber', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                                const Icon(Icons.lock, size: 14, color: AppTheme.textMuted),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _diamondRows[idx]['size'],
-                                decoration: const InputDecoration(labelText: 'Size', hintText: '0.10 ct'),
-                              ),
-                            ),
-                            if (_diamondRows.length > 1)
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                                onPressed: () => _removeDiamondRow(idx),
-                              ),
                           ],
                         ),
                       ),
-
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
-                      onPressed: _addDiamondRow,
-                      icon: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
-                      label: const Text('+ Add More Diamond Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
                     ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // 3. GEMSTONE SECTION (MULTI-ROW WITH + ADD MORE)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFFAF5FF), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE9D5FF))),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('GEMSTONE ISSUED (${_gemstoneRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
-                    const SizedBox(height: 8),
-
-                    for (int idx = 0; idx < _gemstoneRows.length; idx++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Row(
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.borderSubtle)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _gemstoneRows[idx]['weight'],
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
-                              ),
+                            const Text('DATE & TIME', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                            const SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(child: Text(_dateTime, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppTheme.textMain), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                const Icon(Icons.lock, size: 14, color: AppTheme.textMuted),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _gemstoneRows[idx]['size'],
-                                decoration: const InputDecoration(labelText: 'Size', hintText: '5x7 mm'),
-                              ),
-                            ),
-                            if (_gemstoneRows.length > 1)
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                                onPressed: () => _removeGemstoneRow(idx),
-                              ),
                           ],
                         ),
                       ),
-
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
-                      onPressed: _addGemstoneRow,
-                      icon: const Icon(Icons.add, size: 14, color: Color(0xFF9333EA)),
-                      label: const Text('+ Add More Gemstone Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
                     ),
                   ],
                 ),
-              ),
 
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-              // NOTES
-              TextFormField(
-                controller: _notesCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'NOTES (OPTIONAL)', hintText: 'Gold colour, customer requests...'),
-              ),
-
-              const SizedBox(height: 18),
-
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                if (!isEditing) ...[
+                  DropdownButtonFormField<String>(
+                    isExpanded: true, // Prevents 123px overflow
+                    initialValue: _selectedManufacturerId,
+                    decoration: const InputDecoration(labelText: 'ASSIGNED KARIGAR'),
+                    items: widget.manufacturers.map((m) {
+                      return DropdownMenuItem<String>(
+                        value: m.id as String,
+                        child: Text(
+                          '${m.name} (${m.office})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setState(() => _selectedManufacturerId = val),
                   ),
-                  onPressed: _submit,
-                  child: Text(isEditing ? 'SAVE JOB CHANGES' : 'CREATE JOB', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                ),
-              ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _productNameCtrl,
+                    decoration: const InputDecoration(labelText: 'PRODUCT NAME / ITEM TYPE', hintText: 'e.g. 14 K snake ring'),
+                  ),
+                ],
 
-            ],
+                const SizedBox(height: 14),
+
+                // 1. GOLD SECTION (OPTIONAL) - Always starts with 24K
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFFFFFBE8), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFFEF08A))),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('GOLD ISSUED (OPTIONAL)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _goldWeightCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(labelText: 'WEIGHT (g)', hintText: '0.000'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: _goldPurity,
+                              decoration: const InputDecoration(labelText: 'PURITY'),
+                              items: _goldPurityOptions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                              onChanged: (val) {
+                                if (val != null) setState(() => _goldPurity = val);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 2. DIAMOND SECTION (MULTI-ROW WITH + ADD MORE)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFBFDBFE))),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('DIAMOND ISSUED (${_diamondRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                      const SizedBox(height: 8),
+
+                      for (int idx = 0; idx < _diamondRows.length; idx++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _diamondRows[idx]['weight'],
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _diamondRows[idx]['size'],
+                                  decoration: const InputDecoration(labelText: 'Size', hintText: '0.10 ct'),
+                                ),
+                              ),
+                              if (_diamondRows.length > 1)
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                                  onPressed: () => _removeDiamondRow(idx),
+                                ),
+                            ],
+                          ),
+                        ),
+
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
+                        onPressed: _addDiamondRow,
+                        icon: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                        label: const Text('+ Add More Diamond Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 3. GEMSTONE SECTION (MULTI-ROW WITH + ADD MORE)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFFFAF5FF), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE9D5FF))),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('GEMSTONE ISSUED (${_gemstoneRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
+                      const SizedBox(height: 8),
+
+                      for (int idx = 0; idx < _gemstoneRows.length; idx++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _gemstoneRows[idx]['weight'],
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _gemstoneRows[idx]['size'],
+                                  decoration: const InputDecoration(labelText: 'Size', hintText: '5x7 mm'),
+                                ),
+                              ),
+                              if (_gemstoneRows.length > 1)
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                                  onPressed: () => _removeGemstoneRow(idx),
+                                ),
+                            ],
+                          ),
+                        ),
+
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
+                        onPressed: _addGemstoneRow,
+                        icon: const Icon(Icons.add, size: 14, color: Color(0xFF9333EA)),
+                        label: const Text('+ Add More Gemstone Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // NOTES
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'NOTES (OPTIONAL)', hintText: 'Gold colour, customer requests...'),
+                ),
+
+                const SizedBox(height: 18),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: _submit,
+                    child: Text(isEditing ? 'SAVE JOB CHANGES' : 'CREATE JOB', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                ),
+
+              ],
+            ),
           ),
         ),
       ),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Calendar, Lock, Hash, Layers } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Lock, Hash } from 'lucide-react';
 
 export default function JobModal({
   isOpen,
@@ -17,9 +17,9 @@ export default function JobModal({
   const [manufacturerId, setManufacturerId] = useState('');
   const [productName, setProductName] = useState('');
 
-  // Gold Section (Optional)
+  // Gold Section (Always starts with 24K)
   const [goldWeight, setGoldWeight] = useState('');
-  const [goldPurity, setGoldPurity] = useState('22K');
+  const [goldPurity, setGoldPurity] = useState('24K');
 
   // Diamond Section (Multi-row)
   const [diamondRows, setDiamondRows] = useState([
@@ -34,6 +34,9 @@ export default function JobModal({
   // Notes
   const [notes, setNotes] = useState('');
 
+  // Gold purity dropdown starts with 24K
+  const goldPurityOptions = ['24K', '22K', '18K', '14K', '9K'];
+
   useEffect(() => {
     if (isOpen) {
       if (initialJob) {
@@ -41,8 +44,8 @@ export default function JobModal({
         setDateTime(initialJob.timestamp || '');
         setManufacturerId(initialJob.manufacturerId || '');
         setProductName(initialJob.productName || '');
-        setGoldWeight(initialJob.goldWeight || '');
-        setGoldPurity(initialJob.goldPurity || '22K');
+        setGoldWeight(initialJob.goldWeight && initialJob.goldWeight > 0 ? initialJob.goldWeight : '');
+        setGoldPurity(initialJob.goldPurity || '24K');
         setDiamondRows(initialJob.diamondRows && initialJob.diamondRows.length > 0 ? initialJob.diamondRows : [{ id: 'd-1', weight: '', size: '' }]);
         setGemstoneRows(initialJob.gemstoneRows && initialJob.gemstoneRows.length > 0 ? initialJob.gemstoneRows : [{ id: 'g-1', weight: '', size: '' }]);
         setNotes(initialJob.notes || '');
@@ -57,7 +60,7 @@ export default function JobModal({
         setManufacturerId(manufacturers[0]?.id || '');
         setProductName('');
         setGoldWeight('');
-        setGoldPurity('22K');
+        setGoldPurity('24K'); // Always start with 24K
         setDiamondRows([{ id: 'd-1', weight: '', size: '' }]);
         setGemstoneRows([{ id: 'g-1', weight: '', size: '' }]);
         setNotes('');
@@ -66,8 +69,6 @@ export default function JobModal({
   }, [isOpen, initialJob, nextJobNumber, manufacturers]);
 
   if (!isOpen) return null;
-
-  const goldPurityOptions = ['24K', '22K', '18K', '14K', '9K'];
 
   // Diamond Row Handlers
   const handleAddDiamondRow = () => {
@@ -124,7 +125,7 @@ export default function JobModal({
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)',
-      zIndex: 2200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+      zIndex: 2200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
     }}>
       <div style={{
         background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '480px',
@@ -201,7 +202,7 @@ export default function JobModal({
                 <label style={{ fontSize: '12px', fontWeight: '800', color: '#475569' }}>PRODUCT NAME / ITEM TYPE</label>
                 <input
                   type="text"
-                  placeholder="e.g. 22K Antique Bridal Necklace / Ring"
+                  placeholder="e.g. 14 K snake ring"
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', boxSizing: 'border-box' }}
@@ -215,7 +216,7 @@ export default function JobModal({
             </div>
           )}
 
-          {/* 1. GOLD SECTION (OPTIONAL) */}
+          {/* 1. GOLD SECTION (OPTIONAL) - Always starts with 24K */}
           <div style={{ background: '#fffbe8', padding: '14px', borderRadius: '16px', border: '1px solid #fef08a' }}>
             <span style={{ fontSize: '12px', fontWeight: '800', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               GOLD ISSUED (OPTIONAL)
@@ -256,7 +257,7 @@ export default function JobModal({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {diamondRows.map((row, index) => (
+              {diamondRows.map((row) => (
                 <div key={row.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <input
@@ -314,7 +315,7 @@ export default function JobModal({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {gemstoneRows.map((row, index) => (
+              {gemstoneRows.map((row) => (
                 <div key={row.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <input

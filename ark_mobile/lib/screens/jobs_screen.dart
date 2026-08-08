@@ -12,20 +12,21 @@ class JobsScreen extends StatefulWidget {
 }
 
 class _JobsScreenState extends State<JobsScreen> {
+  // Ordered by latest created job first (e.g. #003, #002, #001)
   final List<Map<String, dynamic>> _jobs = [
     {
-      'id': 'job-101',
-      'jobNumber': '001',
-      'timestamp': '04/08/2026, 11:30 AM',
+      'id': 'job-103',
+      'jobNumber': '003',
+      'timestamp': '04/08/2026, 05:45 PM',
       'manufacturerId': 'mfg-1',
       'manufacturerName': 'Ramesh Artisan Workshop',
-      'productName': '22K Antique Royal Signet Ring',
-      'goldWeight': 14.200,
-      'goldPurity': '22K',
-      'diamondRows': [{'weight': '0.25', 'size': '0.25 ct'}],
-      'gemstoneRows': [{'weight': '0.10', 'size': 'Ruby 3mm'}],
-      'notes': 'Yellow Gold finish with antique polish',
-      'status': 'In Progress'
+      'productName': '24K Temple Heritage Choker Necklace',
+      'goldWeight': 110.500,
+      'goldPurity': '24K',
+      'diamondRows': [],
+      'gemstoneRows': [{'weight': '2.50', 'size': 'Emerald 5x7 mm'}],
+      'notes': 'Traditional Nakshi work',
+      'status': 'Completed'
     },
     {
       'id': 'job-102',
@@ -42,19 +43,19 @@ class _JobsScreenState extends State<JobsScreen> {
       'status': 'In Progress'
     },
     {
-      'id': 'job-103',
-      'jobNumber': '003',
-      'timestamp': '28/07/2026, 10:00 AM',
+      'id': 'job-101',
+      'jobNumber': '001',
+      'timestamp': '28/07/2026, 11:30 AM',
       'manufacturerId': 'mfg-1',
       'manufacturerName': 'Ramesh Artisan Workshop',
-      'productName': '24K Temple Heritage Choker Necklace',
-      'goldWeight': 110.500,
-      'goldPurity': '24K',
-      'diamondRows': [],
-      'gemstoneRows': [{'weight': '2.50', 'size': 'Emerald 5x7 mm'}],
-      'notes': 'Traditional Nakshi work',
-      'status': 'Completed'
-    }
+      'productName': '22K Antique Royal Signet Ring',
+      'goldWeight': 14.200,
+      'goldPurity': '22K',
+      'diamondRows': [{'weight': '0.25', 'size': '0.25 ct'}],
+      'gemstoneRows': [{'weight': '0.10', 'size': 'Ruby 3mm'}],
+      'notes': 'Yellow Gold finish with antique polish',
+      'status': 'In Progress'
+    },
   ];
 
   String _getNextJobNumber() {
@@ -68,6 +69,7 @@ class _JobsScreenState extends State<JobsScreen> {
       if (index != -1) {
         _jobs[index] = jobMap;
       } else {
+        // Latest created job is ALWAYS at the very top (index 0)
         _jobs.insert(0, jobMap);
       }
     });
