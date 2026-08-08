@@ -6,7 +6,7 @@ export default function JobsTab({
   manufacturers = [],
   onBack
 }) {
-  // Ordered by latest created job first
+  // Ordered by latest created job first (each containing independent diamond and gemstone item records)
   const [jobs, setJobs] = useState([
     {
       id: 'job-103',
@@ -17,9 +17,11 @@ export default function JobsTab({
       productName: '24K Temple Heritage Choker Necklace',
       goldWeight: 110.500,
       goldPurity: '24K',
-      diamondRows: [],
-      gemstoneRows: [{ id: 'g-1', weight: '2.50', size: 'Emerald 5x7 mm' }],
-      notes: 'Traditional Nakshi work',
+      diamondItems: [],
+      gemstoneItems: [
+        { id: 'g-item-101', parentId: 'job-103', weight: 2.50, size: 'Emerald 5x7 mm', stoneType: 'Emerald' }
+      ],
+      notes: 'Traditional Nakshi work with fine filigree',
       photoUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300',
       photos: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=300'],
       status: 'Completed'
@@ -33,8 +35,11 @@ export default function JobsTab({
       productName: '18K Diamond Solitaire Bangle Set',
       goldWeight: 45.000,
       goldPurity: '18K',
-      diamondRows: [{ id: 'd-1', weight: '1.20', size: '0.10 ct' }, { id: 'd-2', weight: '0.80', size: '0.05 ct' }],
-      gemstoneRows: [],
+      diamondItems: [
+        { id: 'd-item-201', parentId: 'job-102', weight: 1.20, size: '0.10 ct Round Brilliant' },
+        { id: 'd-item-202', parentId: 'job-102', weight: 0.80, size: '0.05 ct Accent Stones' }
+      ],
+      gemstoneItems: [],
       notes: 'White Gold Rhodium plating requested by customer',
       photoUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
       photos: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300'],
@@ -49,9 +54,13 @@ export default function JobsTab({
       productName: '22K Antique Royal Signet Ring',
       goldWeight: 14.200,
       goldPurity: '22K',
-      diamondRows: [{ id: 'd-1', weight: '0.25', size: '0.25 ct' }],
-      gemstoneRows: [{ id: 'g-1', weight: '0.10', size: 'Ruby 3mm' }],
-      notes: 'Yellow Gold finish with antique polish',
+      diamondItems: [
+        { id: 'd-item-301', parentId: 'job-101', weight: 0.25, size: '0.25 ct Cushion Cut' }
+      ],
+      gemstoneItems: [
+        { id: 'g-item-301', parentId: 'job-101', weight: 0.10, size: 'Ruby 3mm', stoneType: 'Ruby' }
+      ],
+      notes: 'Yellow Gold finish with antique matte polish',
       photoUrl: '',
       photos: [],
       status: 'In Progress'
@@ -138,6 +147,8 @@ export default function JobsTab({
           jobs.map(job => {
             const isCompleted = job.status === 'Completed';
             const photoSrc = job.photoUrl || (job.photos && job.photos[0]);
+            const dItems = job.diamondItems || job.diamondRows || [];
+            const gItems = job.gemstoneItems || job.gemstoneRows || [];
 
             return (
               <div
@@ -160,7 +171,7 @@ export default function JobsTab({
                       <img 
                         src={photoSrc} 
                         alt="Product Preview" 
-                        style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
+                        style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
                       />
                     )}
                     <div>
@@ -203,7 +214,7 @@ export default function JobsTab({
                   <span>🕒 {job.timestamp}</span>
                 </div>
 
-                {/* Issued Materials Chips */}
+                {/* Independent Child Stone Records Chips */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}>
                   {job.goldWeight > 0 && (
                     <span style={{ fontSize: '11px', fontWeight: '800', background: '#fffbe8', color: '#b45309', padding: '4px 10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
@@ -211,14 +222,14 @@ export default function JobsTab({
                     </span>
                   )}
 
-                  {job.diamondRows && job.diamondRows.map((d, i) => (
-                    <span key={i} style={{ fontSize: '11px', fontWeight: '800', background: '#eff6ff', color: '#1e40af', padding: '4px 10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                  {dItems.map((d) => (
+                    <span key={d.id} style={{ fontSize: '11px', fontWeight: '800', background: '#eff6ff', color: '#1e40af', padding: '4px 10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
                       Diamond: {d.weight} ct ({d.size || 'Standard'})
                     </span>
                   ))}
 
-                  {job.gemstoneRows && job.gemstoneRows.map((g, i) => (
-                    <span key={i} style={{ fontSize: '11px', fontWeight: '800', background: '#faf5ff', color: '#6b21a8', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
+                  {gItems.map((g) => (
+                    <span key={g.id} style={{ fontSize: '11px', fontWeight: '800', background: '#faf5ff', color: '#6b21a8', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
                       Gemstone: {g.weight} ct ({g.size || 'Standard'})
                     </span>
                   ))}

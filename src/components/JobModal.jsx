@@ -21,14 +21,14 @@ export default function JobModal({
   const [goldWeight, setGoldWeight] = useState('');
   const [goldPurity, setGoldPurity] = useState('24K');
 
-  // Diamond Section (Multi-row)
-  const [diamondRows, setDiamondRows] = useState([
-    { id: 'd-1', weight: '', size: '' }
+  // Independent Diamond Child Items
+  const [diamondItems, setDiamondItems] = useState([
+    { id: 'd-item-1', parentId: null, weight: '', size: '' }
   ]);
 
-  // Gemstone Section (Multi-row)
-  const [gemstoneRows, setGemstoneRows] = useState([
-    { id: 'g-1', weight: '', size: '' }
+  // Independent Gemstone Child Items
+  const [gemstoneItems, setGemstoneItems] = useState([
+    { id: 'g-item-1', parentId: null, weight: '', size: '', stoneType: 'Gemstone' }
   ]);
 
   // Photo Attachments (up to 3 photos)
@@ -50,8 +50,13 @@ export default function JobModal({
         setProductName(initialJob.productName || '');
         setGoldWeight(initialJob.goldWeight && initialJob.goldWeight > 0 ? initialJob.goldWeight : '');
         setGoldPurity(initialJob.goldPurity || '24K');
-        setDiamondRows(initialJob.diamondRows && initialJob.diamondRows.length > 0 ? initialJob.diamondRows : [{ id: 'd-1', weight: '', size: '' }]);
-        setGemstoneRows(initialJob.gemstoneRows && initialJob.gemstoneRows.length > 0 ? initialJob.gemstoneRows : [{ id: 'g-1', weight: '', size: '' }]);
+        
+        const dList = initialJob.diamondItems || initialJob.diamondRows || [];
+        setDiamondItems(dList.length > 0 ? dList : [{ id: 'd-item-1', parentId: initialJob.id, weight: '', size: '' }]);
+        
+        const gList = initialJob.gemstoneItems || initialJob.gemstoneRows || [];
+        setGemstoneItems(gList.length > 0 ? gList : [{ id: 'g-item-1', parentId: initialJob.id, weight: '', size: '', stoneType: 'Gemstone' }]);
+        
         setNotes(initialJob.notes || '');
         if (initialJob.photos && initialJob.photos.length > 0) {
           setPhotos(initialJob.photos);
@@ -72,8 +77,8 @@ export default function JobModal({
         setProductName('');
         setGoldWeight('');
         setGoldPurity('24K'); // Always start with 24K
-        setDiamondRows([{ id: 'd-1', weight: '', size: '' }]);
-        setGemstoneRows([{ id: 'g-1', weight: '', size: '' }]);
+        setDiamondItems([{ id: 'd-item-1', parentId: null, weight: '', size: '' }]);
+        setGemstoneItems([{ id: 'g-item-1', parentId: null, weight: '', size: '', stoneType: 'Gemstone' }]);
         setPhotos([]);
         setNotes('');
       }
@@ -82,30 +87,36 @@ export default function JobModal({
 
   if (!isOpen) return null;
 
-  // Diamond Row Handlers
-  const handleAddDiamondRow = () => {
-    setDiamondRows(prev => [...prev, { id: 'd-' + Date.now(), weight: '', size: '' }]);
+  // Independent Diamond Item Handlers
+  const handleAddDiamondItem = () => {
+    setDiamondItems(prev => [
+      ...prev, 
+      { id: 'd-item-' + Date.now() + Math.random().toString(36).substring(2, 5), parentId: initialJob?.id || null, weight: '', size: '' }
+    ]);
   };
-  const handleRemoveDiamondRow = (id) => {
-    if (diamondRows.length > 1) {
-      setDiamondRows(prev => prev.filter(r => r.id !== id));
+  const handleRemoveDiamondItem = (id) => {
+    if (diamondItems.length > 1) {
+      setDiamondItems(prev => prev.filter(r => r.id !== id));
     }
   };
   const handleDiamondChange = (id, field, value) => {
-    setDiamondRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setDiamondItems(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
   };
 
-  // Gemstone Row Handlers
-  const handleAddGemstoneRow = () => {
-    setGemstoneRows(prev => [...prev, { id: 'g-' + Date.now(), weight: '', size: '' }]);
+  // Independent Gemstone Item Handlers
+  const handleAddGemstoneItem = () => {
+    setGemstoneItems(prev => [
+      ...prev, 
+      { id: 'g-item-' + Date.now() + Math.random().toString(36).substring(2, 5), parentId: initialJob?.id || null, weight: '', size: '', stoneType: 'Gemstone' }
+    ]);
   };
-  const handleRemoveGemstoneRow = (id) => {
-    if (gemstoneRows.length > 1) {
-      setGemstoneRows(prev => prev.filter(r => r.id !== id));
+  const handleRemoveGemstoneItem = (id) => {
+    if (gemstoneItems.length > 1) {
+      setGemstoneItems(prev => prev.filter(r => r.id !== id));
     }
   };
   const handleGemstoneChange = (id, field, value) => {
-    setGemstoneRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setGemstoneItems(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
   };
 
   const handlePhotoUpload = (e, source) => {
@@ -130,9 +141,30 @@ export default function JobModal({
 
     const selectedMfg = manufacturers.find(m => m.id === manufacturerId);
     const mfgName = selectedMfg ? selectedMfg.name : 'Artisan Workshop';
+    const parentJobId = initialJob ? initialJob.id : ('job-' + Date.now());
+
+    // Map independent child items with parentJobId
+    const finalDiamondItems = diamondItems
+      .filter(r => r.weight || r.size)
+      .map(r => ({
+        id: r.id,
+        parentId: parentJobId,
+        weight: parseFloat(r.weight) || 0,
+        size: r.size || 'Standard'
+      }));
+
+    const finalGemstoneItems = gemstoneItems
+      .filter(r => r.weight || r.size)
+      .map(r => ({
+        id: r.id,
+        parentId: parentJobId,
+        weight: parseFloat(r.weight) || 0,
+        size: r.size || 'Standard',
+        stoneType: r.stoneType || 'Gemstone'
+      }));
 
     const jobData = {
-      id: initialJob ? initialJob.id : ('job-' + Date.now()),
+      id: parentJobId,
       jobNumber,
       timestamp: dateTime,
       manufacturerId,
@@ -140,8 +172,8 @@ export default function JobModal({
       productName: productName || 'Custom Jewellery Order',
       goldWeight: parseFloat(goldWeight) || 0,
       goldPurity,
-      diamondRows: diamondRows.filter(r => r.weight || r.size),
-      gemstoneRows: gemstoneRows.filter(r => r.weight || r.size),
+      diamondItems: finalDiamondItems,
+      gemstoneItems: finalGemstoneItems,
       notes,
       photoUrl: photos[0] || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300',
       photos,
@@ -247,10 +279,10 @@ export default function JobModal({
             </div>
           )}
 
-          {/* 1. GOLD SECTION (OPTIONAL) - Always starts with 24K */}
+          {/* 1. GOLD SINGLE RECORD SECTION (Always starts with 24K) */}
           <div style={{ background: '#fffbe8', padding: '14px', borderRadius: '16px', border: '1px solid #fef08a' }}>
             <span style={{ fontSize: '12px', fontWeight: '800', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              GOLD ISSUED (OPTIONAL)
+              GOLD ISSUED (SINGLE RECORD)
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '8px' }}>
               <div>
@@ -279,40 +311,40 @@ export default function JobModal({
             </div>
           </div>
 
-          {/* 2. DIAMOND SECTION (DYNAMIC MULTI-ROW WITH + ADD MORE) */}
+          {/* 2. INDEPENDENT DIAMOND ITEMS SECTION (+ ADD MORE) */}
           <div style={{ background: '#eff6ff', padding: '14px', borderRadius: '16px', border: '1px solid #bfdbfe' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                DIAMOND ISSUED ({diamondRows.length} ROWS)
+                DIAMOND ITEMS ({diamondItems.length} INDEPENDENT RECORDS)
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {diamondRows.map((row) => (
-                <div key={row.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {diamondItems.map((item) => (
+                <div key={item.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <input
                       type="number"
                       step="0.01"
                       placeholder="Weight (ct)"
-                      value={row.weight}
-                      onChange={(e) => handleDiamondChange(row.id, 'weight', e.target.value)}
+                      value={item.weight}
+                      onChange={(e) => handleDiamondChange(item.id, 'weight', e.target.value)}
                       style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
                     <input
                       type="text"
-                      placeholder="Size (e.g. 0.10 ct)"
-                      value={row.size}
-                      onChange={(e) => handleDiamondChange(row.id, 'size', e.target.value)}
+                      placeholder="Size (e.g. 0.10 ct, 2.5mm)"
+                      value={item.size}
+                      onChange={(e) => handleDiamondChange(item.id, 'size', e.target.value)}
                       style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                     />
                   </div>
-                  {diamondRows.length > 1 && (
+                  {diamondItems.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveDiamondRow(row.id)}
+                      onClick={() => handleRemoveDiamondItem(item.id)}
                       style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       <Trash2 size={16} />
@@ -325,7 +357,7 @@ export default function JobModal({
             {/* + Add More Button */}
             <button
               type="button"
-              onClick={handleAddDiamondRow}
+              onClick={handleAddDiamondItem}
               style={{
                 width: '100%', marginTop: '10px', padding: '8px',
                 borderRadius: '8px', background: '#ffffff', color: '#2563eb',
@@ -333,44 +365,44 @@ export default function JobModal({
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
               }}
             >
-              <Plus size={14} /> Add More Diamond Size
+              <Plus size={14} /> Add More Diamond Item
             </button>
           </div>
 
-          {/* 3. GEMSTONE SECTION (DYNAMIC MULTI-ROW WITH + ADD MORE) */}
+          {/* 3. INDEPENDENT GEMSTONE ITEMS SECTION (+ ADD MORE) */}
           <div style={{ background: '#faf5ff', padding: '14px', borderRadius: '16px', border: '1px solid #e9d5ff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: '800', color: '#6b21a8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                GEMSTONE ISSUED ({gemstoneRows.length} ROWS)
+                GEMSTONE ITEMS ({gemstoneItems.length} INDEPENDENT RECORDS)
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {gemstoneRows.map((row) => (
-                <div key={row.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {gemstoneItems.map((item) => (
+                <div key={item.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <input
                       type="number"
                       step="0.01"
                       placeholder="Weight (ct)"
-                      value={row.weight}
-                      onChange={(e) => handleGemstoneChange(row.id, 'weight', e.target.value)}
+                      value={item.weight}
+                      onChange={(e) => handleGemstoneChange(item.id, 'weight', e.target.value)}
                       style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
                     <input
                       type="text"
-                      placeholder="Stone Size (e.g. 5x7 mm)"
-                      value={row.size}
-                      onChange={(e) => handleGemstoneChange(row.id, 'size', e.target.value)}
+                      placeholder="Stone Size (e.g. 5x7 mm Oval)"
+                      value={item.size}
+                      onChange={(e) => handleGemstoneChange(item.id, 'size', e.target.value)}
                       style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                     />
                   </div>
-                  {gemstoneRows.length > 1 && (
+                  {gemstoneItems.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveGemstoneRow(row.id)}
+                      onClick={() => handleRemoveGemstoneItem(item.id)}
                       style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       <Trash2 size={16} />
@@ -383,7 +415,7 @@ export default function JobModal({
             {/* + Add More Button */}
             <button
               type="button"
-              onClick={handleAddGemstoneRow}
+              onClick={handleAddGemstoneItem}
               style={{
                 width: '100%', marginTop: '10px', padding: '8px',
                 borderRadius: '8px', background: '#ffffff', color: '#9333ea',
@@ -391,11 +423,11 @@ export default function JobModal({
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
               }}
             >
-              <Plus size={14} /> Add More Gemstone Size
+              <Plus size={14} /> Add More Gemstone Item
             </button>
           </div>
 
-          {/* 4. PHOTO ATTACHMENT SECTION (SIMILAR TO MATERIAL FORM) */}
+          {/* 4. PHOTO ATTACHMENT SECTION */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <label style={{ fontSize: '12px', fontWeight: '800', color: '#475569' }}>
@@ -456,7 +488,7 @@ export default function JobModal({
 
       </div>
 
-      {/* Modern Photo Attachment Bottom Sheet for Web */}
+      {/* Photo Attachment Bottom Sheet for Web */}
       {isPhotoSheetOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 3000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center'

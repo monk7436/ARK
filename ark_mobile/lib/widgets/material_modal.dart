@@ -28,15 +28,16 @@ class _MaterialModalState extends State<MaterialModal> {
   final _formKey = GlobalKey<FormState>();
   final _dateTimeCtrl = TextEditingController();
   final _vendorCtrl = TextEditingController();
-  final _weightCtrl = TextEditingController();
+  final _goldWeightCtrl = TextEditingController();
   final _priceCtrl = TextEditingController(text: '7200');
-  
-  // Specific inputs
-  final _diamondSizeCtrl = TextEditingController();
-  final _stoneSizeCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   String _purity = '24K';
+
+  // Multi-row Diamond items
+  List<Map<String, TextEditingController>> _diamondRows = [];
+  // Multi-row Gemstone items
+  List<Map<String, TextEditingController>> _gemstoneRows = [];
 
   final List<String> _photosBase64 = [];
   final ImagePicker _picker = ImagePicker();
@@ -62,6 +63,9 @@ class _MaterialModalState extends State<MaterialModal> {
     // Auto-populate Date & Time
     final now = DateTime.now();
     _dateTimeCtrl.text = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}, ${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}";
+    
+    _diamondRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
+    _gemstoneRows = [{'weight': TextEditingController(), 'size': TextEditingController()}];
   }
 
   void _updateDefaultPrice(String mat) {
@@ -75,15 +79,49 @@ class _MaterialModalState extends State<MaterialModal> {
     }
   }
 
+  void _addDiamondRow() {
+    setState(() {
+      _diamondRows.add({'weight': TextEditingController(), 'size': TextEditingController()});
+    });
+  }
+
+  void _removeDiamondRow(int index) {
+    if (_diamondRows.length > 1) {
+      setState(() {
+        _diamondRows.removeAt(index);
+      });
+    }
+  }
+
+  void _addGemstoneRow() {
+    setState(() {
+      _gemstoneRows.add({'weight': TextEditingController(), 'size': TextEditingController()});
+    });
+  }
+
+  void _removeGemstoneRow(int index) {
+    if (_gemstoneRows.length > 1) {
+      setState(() {
+        _gemstoneRows.removeAt(index);
+      });
+    }
+  }
+
   @override
   void dispose() {
     _dateTimeCtrl.dispose();
     _vendorCtrl.dispose();
-    _weightCtrl.dispose();
+    _goldWeightCtrl.dispose();
     _priceCtrl.dispose();
-    _diamondSizeCtrl.dispose();
-    _stoneSizeCtrl.dispose();
     _notesCtrl.dispose();
+    for (var r in _diamondRows) {
+      r['weight']?.dispose();
+      r['size']?.dispose();
+    }
+    for (var r in _gemstoneRows) {
+      r['weight']?.dispose();
+      r['size']?.dispose();
+    }
     super.dispose();
   }
 
@@ -125,8 +163,8 @@ class _MaterialModalState extends State<MaterialModal> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppTheme.borderSubtle),
                       ),
-                      child: Column(
-                        children: const [
+                      child: const Column(
+                        children: [
                           Icon(Icons.camera_alt_outlined, color: AppTheme.goldDark, size: 28),
                           SizedBox(height: 8),
                           Text('Take Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
@@ -150,11 +188,11 @@ class _MaterialModalState extends State<MaterialModal> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppTheme.borderSubtle),
                       ),
-                      child: Column(
-                        children: const [
+                      child: const Column(
+                        children: [
                           Icon(Icons.photo_library_outlined, color: Color(0xFF2563EB), size: 28),
                           SizedBox(height: 8),
-                          Text('Choose From Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
+                          Text('Choose Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMain)),
                         ],
                       ),
                     ),
@@ -196,23 +234,61 @@ class _MaterialModalState extends State<MaterialModal> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      final weightVal = double.tryParse(_weightCtrl.text) ?? 0.0;
+      final parentId = 'tx-${DateTime.now().millisecondsSinceEpoch}';
+      
+      // Calculate total weight across independent items
+      double totalCalculatedWeight = 0.0;
+      List<DiamondItem> dItems = [];
+      List<GemstoneItem> gItems = [];
+
+      if (_materialType == 'gold') {
+        totalCalculatedWeight = double.tryParse(_goldWeightCtrl.text) ?? 0.0;
+      } else if (_materialType == 'diamond') {
+        dItems = _diamondRows
+            .where((r) => r['weight']!.text.isNotEmpty || r['size']!.text.isNotEmpty)
+            .map((r) {
+              final w = double.tryParse(r['weight']!.text) ?? 0.0;
+              totalCalculatedWeight += w;
+              return DiamondItem(
+                id: 'd-item-${DateTime.now().microsecondsSinceEpoch}',
+                parentId: parentId,
+                weight: w,
+                size: r['size']!.text.isEmpty ? 'Standard' : r['size']!.text,
+              );
+            }).toList();
+      } else {
+        gItems = _gemstoneRows
+            .where((r) => r['weight']!.text.isNotEmpty || r['size']!.text.isNotEmpty)
+            .map((r) {
+              final w = double.tryParse(r['weight']!.text) ?? 0.0;
+              totalCalculatedWeight += w;
+              return GemstoneItem(
+                id: 'g-item-${DateTime.now().microsecondsSinceEpoch}',
+                parentId: parentId,
+                weight: w,
+                size: r['size']!.text.isEmpty ? 'Standard' : r['size']!.text,
+                stoneType: 'Gemstone',
+              );
+            }).toList();
+      }
+
       final priceVal = double.tryParse(_priceCtrl.text) ?? 0.0;
-      final total = weightVal * priceVal;
+      final total = totalCalculatedWeight * priceVal;
 
       final newEntry = MaterialEntry(
-        id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
+        id: parentId,
         materialType: _materialType,
         direction: 'INWARD',
-        weight: weightVal,
+        weight: totalCalculatedWeight,
         purity: _materialType == 'gold' ? _purity : null,
-        size: _materialType == 'diamond' ? _diamondSizeCtrl.text : (_materialType == 'gemstone' ? _stoneSizeCtrl.text : null),
         vendorName: _vendorCtrl.text.isEmpty ? 'MMTC-PAMP Bullion' : _vendorCtrl.text,
         price: priceVal,
         totalAmount: total,
         timestamp: _dateTimeCtrl.text,
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
         photoUrl: _photosBase64.isNotEmpty ? _photosBase64.first : null,
+        diamondItems: dItems,
+        gemstoneItems: gItems,
       );
 
       widget.onSubmit(newEntry);
@@ -222,9 +298,21 @@ class _MaterialModalState extends State<MaterialModal> {
 
   @override
   Widget build(BuildContext context) {
-    final weightVal = double.tryParse(_weightCtrl.text) ?? 0.0;
+    double totalCalculatedWeight = 0.0;
+    if (_materialType == 'gold') {
+      totalCalculatedWeight = double.tryParse(_goldWeightCtrl.text) ?? 0.0;
+    } else if (_materialType == 'diamond') {
+      for (var r in _diamondRows) {
+        totalCalculatedWeight += double.tryParse(r['weight']!.text) ?? 0.0;
+      }
+    } else {
+      for (var r in _gemstoneRows) {
+        totalCalculatedWeight += double.tryParse(r['weight']!.text) ?? 0.0;
+      }
+    }
+
     final priceVal = double.tryParse(_priceCtrl.text) ?? 0.0;
-    final totalAmount = weightVal * priceVal;
+    final totalAmount = totalCalculatedWeight * priceVal;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -243,9 +331,9 @@ class _MaterialModalState extends State<MaterialModal> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
+                    const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text('MATERIAL VAULT INTAKE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
                         Text('Add Material Entry', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textMain)),
                       ],
@@ -299,7 +387,7 @@ class _MaterialModalState extends State<MaterialModal> {
                   controller: _dateTimeCtrl,
                   decoration: const InputDecoration(
                     labelText: 'DATE & TIME (EDITABLE)',
-                    prefixIcon: Icon(Icons.calendar_today, size: 18, color: AppTheme.goldDark),
+                    prefixIcon: Icon(Icons.calendar_today_outlined, size: 16, color: AppTheme.goldDark),
                   ),
                 ),
 
@@ -310,48 +398,50 @@ class _MaterialModalState extends State<MaterialModal> {
                   controller: _vendorCtrl,
                   decoration: const InputDecoration(
                     labelText: 'VENDOR NAME *',
-                    hintText: 'e.g. MMTC-PAMP Bullion / Surat Syndicate',
+                    hintText: 'e.g. MMTC-PAMP Bullion / Surat Diamond Syndicate',
                   ),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Vendor Name is required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Vendor name is required' : null,
                 ),
 
                 const SizedBox(height: 14),
 
                 // DYNAMIC MATERIAL FIELDS
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.bgPrimary,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.borderSubtle),
-                  ),
-                  child: Column(
-                    children: [
-                      // GOLD FIELDS
-                      if (_materialType == 'gold') ...[
+
+                // 1. GOLD FIELDS
+                if (_materialType == 'gold') ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBE8),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFEF08A)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
                           children: [
                             Expanded(
+                              flex: 3,
                               child: TextFormField(
-                                controller: _weightCtrl,
+                                controller: _goldWeightCtrl,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(labelText: 'WEIGHT (grams) *', hintText: '0.000'),
-                                onChanged: (v) => setState(() {}),
-                                validator: (val) {
-                                  if (val == null || val.isEmpty) return 'Required';
-                                  final numVal = double.tryParse(val);
-                                  if (numVal == null || numVal <= 0) return 'Must be > 0';
-                                  return null;
-                                },
+                                decoration: const InputDecoration(labelText: 'WEIGHT (g) *', hintText: '0.000'),
+                                validator: (val) => val == null || val.isEmpty ? 'Weight is required' : null,
+                                onChanged: (_) => setState(() {}),
                               ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
+                              flex: 2,
                               child: DropdownButtonFormField<String>(
+                                isExpanded: true,
                                 initialValue: _purity,
                                 decoration: const InputDecoration(labelText: 'PURITY *'),
                                 items: _goldPurityOptions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                                onChanged: (val) => setState(() => _purity = val!),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _purity = val);
+                                },
                               ),
                             ),
                           ],
@@ -361,114 +451,149 @@ class _MaterialModalState extends State<MaterialModal> {
                           controller: _priceCtrl,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: const InputDecoration(labelText: 'PRICE PER GRAM (₹) *', prefixText: '₹ '),
-                          onChanged: (v) => setState(() {}),
-                          validator: (val) {
-                            if (val == null || val.isEmpty) return 'Required';
-                            final numVal = double.tryParse(val);
-                            if (numVal == null || numVal <= 0) return 'Must be > 0';
-                            return null;
-                          },
+                          validator: (val) => val == null || val.isEmpty ? 'Price is required' : null,
+                          onChanged: (_) => setState(() {}),
                         ),
                       ],
-
-                      // DIAMOND FIELDS
-                      if (_materialType == 'diamond') ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _weightCtrl,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(labelText: 'WEIGHT (Carat / ct) *', hintText: '0.00 ct'),
-                                onChanged: (v) => setState(() {}),
-                                validator: (val) {
-                                  if (val == null || val.isEmpty) return 'Required';
-                                  final numVal = double.tryParse(val);
-                                  if (numVal == null || numVal <= 0) return 'Must be > 0';
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _diamondSizeCtrl,
-                                decoration: const InputDecoration(labelText: 'DIAMOND SIZE *', hintText: 'e.g. 0.25 ct'),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Mandatory for Diamonds' : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: _priceCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(labelText: 'PRICE PER CARAT (₹) *', prefixText: '₹ '),
-                          onChanged: (v) => setState(() {}),
-                          validator: (val) {
-                            if (val == null || val.isEmpty) return 'Required';
-                            final numVal = double.tryParse(val);
-                            if (numVal == null || numVal <= 0) return 'Must be > 0';
-                            return null;
-                          },
-                        ),
-                      ],
-
-                      // GEMSTONE FIELDS
-                      if (_materialType == 'gemstone') ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _weightCtrl,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(labelText: 'WEIGHT (Carat / ct) *', hintText: '0.00 ct'),
-                                onChanged: (v) => setState(() {}),
-                                validator: (val) {
-                                  if (val == null || val.isEmpty) return 'Required';
-                                  final numVal = double.tryParse(val);
-                                  if (numVal == null || numVal <= 0) return 'Must be > 0';
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _stoneSizeCtrl,
-                                decoration: const InputDecoration(labelText: 'STONE SIZE *', hintText: 'e.g. 5x7 mm'),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Mandatory for Gemstones' : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: _priceCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(labelText: 'PRICE PER CARAT (₹) *', prefixText: '₹ '),
-                          onChanged: (v) => setState(() {}),
-                          validator: (val) {
-                            if (val == null || val.isEmpty) return 'Required';
-                            final numVal = double.tryParse(val);
-                            if (numVal == null || numVal <= 0) return 'Must be > 0';
-                            return null;
-                          },
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
+                ],
+
+                // 2. DIAMOND MULTI-ROW (+ ADD MORE)
+                if (_materialType == 'diamond') ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('DIAMOND ITEMS (${_diamondRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                        const SizedBox(height: 8),
+
+                        for (int idx = 0; idx < _diamondRows.length; idx++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _diamondRows[idx]['weight'],
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _diamondRows[idx]['size'],
+                                    decoration: const InputDecoration(labelText: 'Size', hintText: '0.10 ct'),
+                                  ),
+                                ),
+                                if (_diamondRows.length > 1)
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                                    onPressed: () => _removeDiamondRow(idx),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
+                          onPressed: _addDiamondRow,
+                          icon: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                          label: const Text('+ Add More Diamond Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        ),
+
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _priceCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'PRICE PER CARAT (₹) *', prefixText: '₹ '),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // 3. GEMSTONE MULTI-ROW (+ ADD MORE)
+                if (_materialType == 'gemstone') ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAF5FF),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE9D5FF)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('GEMSTONE ITEMS (${_gemstoneRows.length} ROWS)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
+                        const SizedBox(height: 8),
+
+                        for (int idx = 0; idx < _gemstoneRows.length; idx++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _gemstoneRows[idx]['weight'],
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(labelText: 'Weight (ct)', hintText: '0.00'),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _gemstoneRows[idx]['size'],
+                                    decoration: const InputDecoration(labelText: 'Size', hintText: '5x7 mm'),
+                                  ),
+                                ),
+                                if (_gemstoneRows.length > 1)
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                                    onPressed: () => _removeGemstoneRow(idx),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
+                          onPressed: _addGemstoneRow,
+                          icon: const Icon(Icons.add, size: 14, color: Color(0xFF9333EA)),
+                          label: const Text('+ Add More Gemstone Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
+                        ),
+
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _priceCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'PRICE PER CARAT (₹) *', prefixText: '₹ '),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 14),
 
-                // COMMON FIELD 3: READ-ONLY AUTO-CALCULATED TOTAL AMOUNT
+                // COMMON FIELD 3: READ-ONLY AUTO-CALCULATED TOTAL
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFECFDF5),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF059669), width: 1.5),
+                    border: Border.all(color: const Color(0xFF059669)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -476,68 +601,66 @@ class _MaterialModalState extends State<MaterialModal> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('TOTAL AMOUNT (AUTO-CALCULATED)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
+                          const Text('TOTAL AMOUNT (AUTO-CALCULATED)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
                           const SizedBox(height: 2),
-                          Text(
-                            '$weightVal ${_materialType == "gold" ? "g" : "ct"} × ₹$priceVal',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF065F46)),
-                          ),
+                          Text('${totalCalculatedWeight.toStringAsFixed(2)} ${_materialType == "gold" ? "g" : "ct"} × ₹${priceVal.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, color: Color(0xFF065F46))),
                         ],
                       ),
-                      Text(
-                        '₹${totalAmount.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF047857)),
-                      ),
+                      Text('₹${totalAmount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 14),
 
-                // COMMON FIELD 4: PHOTO ATTACHMENTS CAPSULE WORKFLOW
+                // COMMON FIELD 4: PHOTO ATTACHMENTS
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('PHOTO ATTACHMENTS (${_photosBase64.length}/3)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    Text('PHOTO ATTACHMENTS (${_photosBase64.length}/3)', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textMuted)),
+                    InkWell(
+                      onTap: _showAttachmentBottomSheet,
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: AppTheme.bgPrimary, borderRadius: BorderRadius.circular(999), border: Border.all(color: AppTheme.borderSubtle)),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, size: 14, color: AppTheme.goldDark),
+                            SizedBox(width: 4),
+                            Text('+ Add Photos', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
+                          ],
+                        ),
                       ),
-                      onPressed: _showAttachmentBottomSheet,
-                      icon: const Icon(Icons.add, size: 16, color: AppTheme.goldDark),
-                      label: const Text('+ Add Photos', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.goldDark)),
                     ),
                   ],
                 ),
 
                 if (_photosBase64.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Row(
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: _photosBase64.asMap().entries.map((entry) {
                       final idx = entry.key;
-                      final base64Str = entry.value;
+                      final b64 = entry.value;
                       return Stack(
                         children: [
-                          Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            width: 60, height: 60,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppTheme.borderSubtle),
-                              image: DecorationImage(
-                                image: MemoryImage(base64Decode(base64Str.split(',').last)),
-                                fit: BoxFit.cover,
-                              ),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.memory(
+                              base64Decode(b64.split(',').last),
+                              width: 60, height: 60, fit: BoxFit.cover,
                             ),
                           ),
                           Positioned(
-                            top: 2, right: 10,
-                            child: GestureDetector(
+                            top: 2, right: 2,
+                            child: InkWell(
                               onTap: () => setState(() => _photosBase64.removeAt(idx)),
                               child: Container(
-                                padding: const EdgeInsets.all(2),
                                 decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                padding: const EdgeInsets.all(2),
                                 child: const Icon(Icons.close, size: 12, color: Colors.white),
                               ),
                             ),
@@ -548,15 +671,23 @@ class _MaterialModalState extends State<MaterialModal> {
                   ),
                 ],
 
+                const SizedBox(height: 12),
+
+                // COMMON FIELD 5: NOTES
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'NOTES (OPTIONAL)', hintText: 'Purity details, vendor remarks...'),
+                ),
+
                 const SizedBox(height: 18),
 
-                // SAVE ENTRY BUTTON
                 SizedBox(
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
+                      backgroundColor: AppTheme.goldDark,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: _submit,

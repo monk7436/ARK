@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
 const materialsRoutes = require('./routes/materials');
+const jobsRoutes = require('./routes/jobs');
 const manufacturersRoutes = require('./routes/manufacturers');
 const inventoryRoutes = require('./routes/inventory');
 const customersRoutes = require('./routes/customers');
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/materials', materialsRoutes);
+app.use('/api/jobs', jobsRoutes);
 app.use('/api/manufacturers', manufacturersRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/customers', customersRoutes);

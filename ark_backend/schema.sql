@@ -22,25 +22,7 @@ CREATE TABLE IF NOT EXISTS customers (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 3. MATERIAL TRANSACTIONS TABLE (Gold 995 24K, Diamond, Gemstone)
-CREATE TABLE IF NOT EXISTS materials (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    timestamp TIMESTAMP DEFAULT NOW(),
-    direction VARCHAR(20) CHECK (direction IN ('INWARD', 'OUTWARD')) NOT NULL,
-    material_type VARCHAR(20) CHECK (material_type IN ('gold', 'diamond', 'gemstone')) NOT NULL,
-    weight DECIMAL(10, 3) NOT NULL,
-    purity VARCHAR(20) DEFAULT '995 (24K)',
-    size VARCHAR(50),
-    vendor_name VARCHAR(255) NOT NULL,
-    manufacturer_id UUID,
-    price DECIMAL(12, 2) NOT NULL,
-    total_amount DECIMAL(14, 2) NOT NULL,
-    product_type VARCHAR(100),
-    photo_url TEXT,
-    created_by UUID REFERENCES users(id)
-);
-
--- 4. MANUFACTURERS / KARIGARS TABLE
+-- 3. MANUFACTURERS / KARIGARS TABLE
 CREATE TABLE IF NOT EXISTS manufacturers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
@@ -53,7 +35,79 @@ CREATE TABLE IF NOT EXISTS manufacturers (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 5. TAGGED INVENTORY STOCK CATALOG TABLE
+-- 4. MATERIAL TRANSACTIONS TABLE (Gold, Diamond Inward/Outward, Gemstone Inward/Outward)
+CREATE TABLE IF NOT EXISTS materials (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    timestamp TIMESTAMP DEFAULT NOW(),
+    direction VARCHAR(20) CHECK (direction IN ('INWARD', 'OUTWARD')) NOT NULL,
+    material_type VARCHAR(20) CHECK (material_type IN ('gold', 'diamond', 'gemstone')) NOT NULL,
+    gold_weight DECIMAL(10, 3) DEFAULT 0.000,
+    gold_purity VARCHAR(20) DEFAULT '24K',
+    vendor_name VARCHAR(255) NOT NULL,
+    manufacturer_id UUID REFERENCES manufacturers(id) ON DELETE SET NULL,
+    price DECIMAL(12, 2) NOT NULL,
+    total_amount DECIMAL(14, 2) NOT NULL,
+    notes TEXT,
+    photo_url TEXT,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 5. MATERIAL INDEPENDENT DIAMOND ITEMS (Linked to Parent Material Entry)
+CREATE TABLE IF NOT EXISTS material_diamond_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    material_entry_id UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    weight DECIMAL(10, 3) NOT NULL, -- Carat (ct)
+    size VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 6. MATERIAL INDEPENDENT GEMSTONE ITEMS (Linked to Parent Material Entry)
+CREATE TABLE IF NOT EXISTS material_gemstone_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    material_entry_id UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    weight DECIMAL(10, 3) NOT NULL, -- Carat (ct)
+    size VARCHAR(100) NOT NULL,
+    stone_type VARCHAR(100),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 7. MANUFACTURING JOBS TABLE (Parent Work Order Record)
+CREATE TABLE IF NOT EXISTS jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_number VARCHAR(50) NOT NULL,
+    timestamp VARCHAR(100) NOT NULL,
+    manufacturer_id UUID REFERENCES manufacturers(id) ON DELETE SET NULL,
+    manufacturer_name VARCHAR(255) NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    gold_weight DECIMAL(10, 3) DEFAULT 0.000,
+    gold_purity VARCHAR(20) DEFAULT '24K',
+    status VARCHAR(50) DEFAULT 'In Progress',
+    notes TEXT,
+    photo_url TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 8. JOB INDEPENDENT DIAMOND ITEMS (Linked to Parent Job Record)
+CREATE TABLE IF NOT EXISTS job_diamond_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    weight DECIMAL(10, 3) NOT NULL, -- Carat (ct)
+    size VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 9. JOB INDEPENDENT GEMSTONE ITEMS (Linked to Parent Job Record)
+CREATE TABLE IF NOT EXISTS job_gemstone_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    weight DECIMAL(10, 3) NOT NULL, -- Carat (ct)
+    size VARCHAR(100) NOT NULL,
+    stone_type VARCHAR(100),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 10. TAGGED INVENTORY STOCK CATALOG TABLE
 CREATE TABLE IF NOT EXISTS inventory (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tag_code VARCHAR(100) UNIQUE NOT NULL,
@@ -71,7 +125,7 @@ CREATE TABLE IF NOT EXISTS inventory (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 6. B2B & RETAIL INVOICES TABLE
+-- 11. B2B & RETAIL INVOICES TABLE
 CREATE TABLE IF NOT EXISTS invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invoice_number VARCHAR(100) UNIQUE NOT NULL,

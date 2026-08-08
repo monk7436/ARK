@@ -14,19 +14,19 @@ export default function MaterialModal({
   // 2. Common Fields State
   const [dateTime, setDateTime] = useState('');
   const [vendorName, setVendorName] = useState('');
-  const [weight, setWeight] = useState('');
+  const [goldWeight, setGoldWeight] = useState('');
   const [price, setPrice] = useState('7200');
   const [notes, setNotes] = useState('');
 
   // 3. Gold Specific Fields State
   const [purity, setPurity] = useState('24K');
 
-  // 4. Multi-Stone Rows for Diamond & Gemstone Inward Entries
-  const [diamondRows, setDiamondRows] = useState([
-    { id: 'd-1', weight: '', size: '' }
+  // 4. Independent Child Items for Diamond & Gemstone Inward/Outward Entries
+  const [diamondItems, setDiamondItems] = useState([
+    { id: 'd-item-1', parentId: null, weight: '', size: '' }
   ]);
-  const [gemstoneRows, setGemstoneRows] = useState([
-    { id: 'g-1', weight: '', size: '' }
+  const [gemstoneItems, setGemstoneItems] = useState([
+    { id: 'g-item-1', parentId: null, weight: '', size: '', stoneType: 'Gemstone' }
   ]);
 
   // Photo Picker State
@@ -64,21 +64,40 @@ export default function MaterialModal({
 
   if (!isOpen) return null;
 
-  // Diamond & Gemstone Multi-Row Handlers
-  const handleAddDiamondRow = () => setDiamondRows(prev => [...prev, { id: 'd-' + Date.now(), weight: '', size: '' }]);
-  const handleRemoveDiamondRow = (id) => { if (diamondRows.length > 1) setDiamondRows(prev => prev.filter(r => r.id !== id)); };
-  const handleDiamondChange = (id, field, val) => setDiamondRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  // Independent Diamond Item Handlers
+  const handleAddDiamondItem = () => {
+    setDiamondItems(prev => [
+      ...prev, 
+      { id: 'd-item-' + Date.now() + Math.random().toString(36).substring(2, 5), parentId: null, weight: '', size: '' }
+    ]);
+  };
+  const handleRemoveDiamondItem = (id) => { 
+    if (diamondItems.length > 1) setDiamondItems(prev => prev.filter(r => r.id !== id)); 
+  };
+  const handleDiamondChange = (id, field, val) => {
+    setDiamondItems(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  };
 
-  const handleAddGemstoneRow = () => setGemstoneRows(prev => [...prev, { id: 'g-' + Date.now(), weight: '', size: '' }]);
-  const handleRemoveGemstoneRow = (id) => { if (gemstoneRows.length > 1) setGemstoneRows(prev => prev.filter(r => r.id !== id)); };
-  const handleGemstoneChange = (id, field, val) => setGemstoneRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  // Independent Gemstone Item Handlers
+  const handleAddGemstoneItem = () => {
+    setGemstoneItems(prev => [
+      ...prev, 
+      { id: 'g-item-' + Date.now() + Math.random().toString(36).substring(2, 5), parentId: null, weight: '', size: '', stoneType: 'Gemstone' }
+    ]);
+  };
+  const handleRemoveGemstoneItem = (id) => { 
+    if (gemstoneItems.length > 1) setGemstoneItems(prev => prev.filter(r => r.id !== id)); 
+  };
+  const handleGemstoneChange = (id, field, val) => {
+    setGemstoneItems(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  };
 
-  // Total Weight Calculation
+  // Total Weight Calculated from Independent Child Items
   const totalCalculatedWeight = materialType === 'gold' 
-    ? (parseFloat(weight) || 0)
+    ? (parseFloat(goldWeight) || 0)
     : (materialType === 'diamond' 
-        ? diamondRows.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0)
-        : gemstoneRows.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0));
+        ? diamondItems.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0)
+        : gemstoneItems.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0));
 
   const priceNum = parseFloat(price) || 0;
   const totalAmount = totalCalculatedWeight * priceNum;
@@ -108,7 +127,7 @@ export default function MaterialModal({
   const validate = () => {
     const errs = {};
     if (!vendorName.trim()) errs.vendorName = 'Vendor Name is required.';
-    if (totalCalculatedWeight <= 0) errs.weight = 'Weight must be greater than zero.';
+    if (totalCalculatedWeight <= 0) errs.weight = 'Total weight must be greater than zero.';
     if (!price || parseFloat(price) <= 0) errs.price = 'Price must be greater than zero.';
     if (materialType === 'gold' && !purity) errs.purity = 'Purity is mandatory for Gold.';
 
@@ -120,15 +139,38 @@ export default function MaterialModal({
     e.preventDefault();
     if (!validate()) return;
 
+    const parentId = 'tx-' + Date.now();
+
+    // Map independent child items linked with parentId
+    const finalDiamondItems = materialType === 'diamond' 
+      ? diamondItems.filter(r => r.weight || r.size).map(r => ({
+          id: r.id,
+          parentId,
+          weight: parseFloat(r.weight) || 0,
+          size: r.size || 'Standard'
+        }))
+      : [];
+
+    const finalGemstoneItems = materialType === 'gemstone' 
+      ? gemstoneItems.filter(r => r.weight || r.size).map(r => ({
+          id: r.id,
+          parentId,
+          weight: parseFloat(r.weight) || 0,
+          size: r.size || 'Standard',
+          stoneType: r.stoneType || 'Gemstone'
+        }))
+      : [];
+
     const newEntry = {
-      id: 'tx-' + Date.now(),
+      id: parentId,
       timestamp: dateTime,
       direction: 'INWARD',
       materialType,
       weight: totalCalculatedWeight,
+      goldWeight: materialType === 'gold' ? totalCalculatedWeight : 0,
       purity: materialType === 'gold' ? purity : null,
-      diamondRows: materialType === 'diamond' ? diamondRows : null,
-      gemstoneRows: materialType === 'gemstone' ? gemstoneRows : null,
+      diamondItems: finalDiamondItems,
+      gemstoneItems: finalGemstoneItems,
       vendorName,
       price: parseFloat(price),
       totalAmount,
@@ -139,7 +181,7 @@ export default function MaterialModal({
 
     onSubmit(newEntry);
     onClose();
-    setWeight('');
+    setGoldWeight('');
     setVendorName('');
     setPhotos([]);
     setErrors({});
@@ -149,7 +191,7 @@ export default function MaterialModal({
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)',
-      zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+      zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
     }}>
       <div style={{
         background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '480px',
@@ -228,14 +270,14 @@ export default function MaterialModal({
 
           {/* DYNAMIC MATERIAL FIELDS */}
 
-          {/* GOLD FIELDS */}
+          {/* 1. GOLD SINGLE RECORD SECTION */}
           {materialType === 'gold' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#fffbe8', padding: '14px', borderRadius: '16px', border: '1px solid #fef08a' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '800', color: '#b45309' }}>WEIGHT (grams) *</label>
                 <input
                   type="number" step="0.001" placeholder="0.000 g"
-                  value={weight} onChange={(e) => setWeight(e.target.value)}
+                  value={goldWeight} onChange={(e) => setGoldWeight(e.target.value)}
                   style={{ width: '100%', padding: '12px', borderRadius: '10px', border: errors.weight ? '2px solid #dc2626' : '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
                 />
               </div>
@@ -263,28 +305,28 @@ export default function MaterialModal({
             </div>
           )}
 
-          {/* DIAMOND MULTI-ROW FIELDS (+ ADD MORE) */}
+          {/* 2. DIAMOND INDEPENDENT CHILD RECORDS SECTION (+ ADD MORE) */}
           {materialType === 'diamond' && (
             <div style={{ background: '#eff6ff', padding: '14px', borderRadius: '16px', border: '1px solid #bfdbfe' }}>
               <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af', textTransform: 'uppercase' }}>
-                DIAMOND STONES ({diamondRows.length} ROWS)
+                DIAMOND ITEMS ({diamondItems.length} INDEPENDENT RECORDS)
               </span>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                {diamondRows.map((row) => (
-                  <div key={row.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {diamondItems.map((item) => (
+                  <div key={item.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
                       type="number" step="0.01" placeholder="Weight (ct)"
-                      value={row.weight} onChange={(e) => handleDiamondChange(row.id, 'weight', e.target.value)}
+                      value={item.weight} onChange={(e) => handleDiamondChange(item.id, 'weight', e.target.value)}
                       style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', boxSizing: 'border-box' }}
                     />
                     <input
-                      type="text" placeholder="Size (e.g. 0.10 ct)"
-                      value={row.size} onChange={(e) => handleDiamondChange(row.id, 'size', e.target.value)}
+                      type="text" placeholder="Size (e.g. 0.10 ct, 2.5mm)"
+                      value={item.size} onChange={(e) => handleDiamondChange(item.id, 'size', e.target.value)}
                       style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                     />
-                    {diamondRows.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveDiamondRow(row.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {diamondItems.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveDiamondItem(item.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Trash2 size={16} />
                       </button>
                     )}
@@ -293,10 +335,10 @@ export default function MaterialModal({
               </div>
 
               <button
-                type="button" onClick={handleAddDiamondRow}
+                type="button" onClick={handleAddDiamondItem}
                 style={{ width: '100%', marginTop: '10px', padding: '8px', borderRadius: '8px', background: '#ffffff', color: '#2563eb', border: '1px solid #93c5fd', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                <Plus size={14} /> Add More Diamond Size
+                <Plus size={14} /> Add More Diamond Item
               </button>
 
               <div style={{ marginTop: '10px' }}>
@@ -312,28 +354,28 @@ export default function MaterialModal({
             </div>
           )}
 
-          {/* GEMSTONE MULTI-ROW FIELDS (+ ADD MORE) */}
+          {/* 3. GEMSTONE INDEPENDENT CHILD RECORDS SECTION (+ ADD MORE) */}
           {materialType === 'gemstone' && (
             <div style={{ background: '#faf5ff', padding: '14px', borderRadius: '16px', border: '1px solid #e9d5ff' }}>
               <span style={{ fontSize: '12px', fontWeight: '800', color: '#6b21a8', textTransform: 'uppercase' }}>
-                GEMSTONE STONES ({gemstoneRows.length} ROWS)
+                GEMSTONE ITEMS ({gemstoneItems.length} INDEPENDENT RECORDS)
               </span>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                {gemstoneRows.map((row) => (
-                  <div key={row.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {gemstoneItems.map((item) => (
+                  <div key={item.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
                       type="number" step="0.01" placeholder="Weight (ct)"
-                      value={row.weight} onChange={(e) => handleGemstoneChange(row.id, 'weight', e.target.value)}
+                      value={item.weight} onChange={(e) => handleGemstoneChange(item.id, 'weight', e.target.value)}
                       style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', boxSizing: 'border-box' }}
                     />
                     <input
-                      type="text" placeholder="Size (e.g. 5x7 mm)"
-                      value={row.size} onChange={(e) => handleGemstoneChange(row.id, 'size', e.target.value)}
+                      type="text" placeholder="Size (e.g. 5x7 mm Oval)"
+                      value={item.size} onChange={(e) => handleGemstoneChange(item.id, 'size', e.target.value)}
                       style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                     />
-                    {gemstoneRows.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveGemstoneRow(row.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {gemstoneItems.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveGemstoneItem(item.id)} style={{ background: '#fee2e2', border: 'none', borderRadius: '8px', width: '34px', height: '34px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Trash2 size={16} />
                       </button>
                     )}
@@ -342,10 +384,10 @@ export default function MaterialModal({
               </div>
 
               <button
-                type="button" onClick={handleAddGemstoneRow}
+                type="button" onClick={handleAddGemstoneItem}
                 style={{ width: '100%', marginTop: '10px', padding: '8px', borderRadius: '8px', background: '#ffffff', color: '#9333ea', border: '1px solid #d8b4fe', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                <Plus size={14} /> Add More Gemstone Size
+                <Plus size={14} /> Add More Gemstone Item
               </button>
 
               <div style={{ marginTop: '10px' }}>
