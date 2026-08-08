@@ -5,49 +5,88 @@ const { pool } = require('../db');
 // GET all material entries with their child diamond and gemstone items
 router.get('/', async (req, res) => {
   try {
-    const matResult = await pool.query('SELECT * FROM materials ORDER BY timestamp DESC');
+    const matResult = await pool.query(`
+      SELECT 
+        id, 
+        timestamp, 
+        direction, 
+        material_type, 
+        weight, 
+        purity, 
+        vendor_name, 
+        manufacturer_id, 
+        job_id, 
+        price, 
+        total_amount, 
+        notes, 
+        photo_url, 
+        created_at 
+      FROM materials 
+      ORDER BY timestamp DESC, created_at DESC
+    `);
     const materials = matResult.rows;
 
     // Fetch child diamond & gemstone items for all material entries
-    const diamondResult = await pool.query('SELECT * FROM material_diamond_items ORDER BY created_at ASC');
-    const gemstoneResult = await pool.query('SELECT * FROM material_gemstone_items ORDER BY created_at ASC');
+    const diamondResult = await pool.query(`
+      SELECT id, material_entry_id, COALESCE(weight_ct, weight, 0) as weight_ct, size_mm, shape, custom_shape, created_at 
+      FROM material_diamond_items 
+      ORDER BY created_at ASC
+    `);
+    const gemstoneResult = await pool.query(`
+      SELECT id, material_entry_id, weight, size, stone_type, created_at 
+      FROM material_gemstone_items 
+      ORDER BY created_at ASC
+    `);
 
     const materialsWithChildren = materials.map(m => {
+      const dItems = diamondResult.rows
+        .filter(d => d.material_entry_id === m.id)
+        .map(d => ({
+          id: d.id,
+          parentId: d.material_entry_id,
+          weight: parseFloat(d.weight_ct || 0),
+          weightCt: parseFloat(d.weight_ct || 0),
+          sizeMm: parseFloat(d.size_mm || 0),
+          size: `${parseFloat(d.size_mm || 0).toFixed(1)} mm`,
+          shape: d.shape,
+          customShape: d.custom_shape
+        }));
+
+      const gItems = gemstoneResult.rows
+        .filter(g => g.material_entry_id === m.id)
+        .map(g => ({
+          id: g.id,
+          parentId: g.material_entry_id,
+          weight: parseFloat(g.weight || 0),
+          size: g.size,
+          stoneType: g.stone_type
+        }));
+
       return {
         ...m,
         id: m.id,
         direction: m.direction,
         materialType: m.material_type,
-        goldWeight: parseFloat(m.gold_weight || 0),
-        goldPurity: m.gold_purity || '24K',
+        weight: parseFloat(m.weight || 0),
+        goldWeight: m.material_type === 'gold' ? parseFloat(m.weight || 0) : 0,
+        purity: m.purity,
+        goldPurity: m.purity || '24K',
         vendorName: m.vendor_name,
         manufacturerId: m.manufacturer_id,
         jobId: m.job_id,
-        price: parseFloat(m.price || 0),
-        totalAmount: parseFloat(m.total_amount || 0),
+        price: m.price !== null ? parseFloat(m.price) : 0,
+        totalAmount: m.total_amount !== null ? parseFloat(m.total_amount) : 0,
         photoUrl: m.photo_url,
         notes: m.notes,
-        diamondItems: diamondResult.rows
-          .filter(d => d.material_entry_id === m.id)
-          .map(d => ({
-            id: d.id,
-            parentId: d.material_entry_id,
-            weight: parseFloat(d.weight_ct || 0),
-            weightCt: parseFloat(d.weight_ct || 0),
-            sizeMm: parseFloat(d.size_mm || 0),
-            size: `${parseFloat(d.size_mm || 0).toFixed(1)} mm`,
-            shape: d.shape,
-            customShape: d.custom_shape
-          })),
-        gemstoneItems: gemstoneResult.rows
-          .filter(g => g.material_entry_id === m.id)
-          .map(g => ({ id: g.id, parentId: g.material_entry_id, weight: parseFloat(g.weight || 0), size: g.size, stoneType: g.stone_type }))
+        diamondItems: dItems,
+        gemstoneItems: gItems
       };
     });
 
     res.json({ materials: materialsWithChildren });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching materials:', err);
+    res.status(500).json({ error: err.message, code: err.code });
   }
 });
 
@@ -56,20 +95,28 @@ router.get('/diamond-stock', async (req, res) => {
   try {
     // Inward Diamonds
     const inRes = await pool.query(`
-      SELECT d.size_mm, d.shape, d.custom_shape, SUM(d.weight_ct) as total_received
+      SELECT 
+        COALESCE(d.size_mm, 2.5) as size_mm, 
+        COALESCE(d.shape, 'Round') as shape, 
+        d.custom_shape, 
+        SUM(COALESCE(d.weight_ct, d.weight, 0)) as total_received
       FROM material_diamond_items d
       JOIN materials m ON d.material_entry_id = m.id
       WHERE m.direction = 'INWARD'
-      GROUP BY d.size_mm, d.shape, d.custom_shape
+      GROUP BY COALESCE(d.size_mm, 2.5), COALESCE(d.shape, 'Round'), d.custom_shape
     `);
 
     // Outward Diamonds (Manual and Job-Generated)
     const outRes = await pool.query(`
-      SELECT d.size_mm, d.shape, d.custom_shape, SUM(d.weight_ct) as total_issued
+      SELECT 
+        COALESCE(d.size_mm, 2.5) as size_mm, 
+        COALESCE(d.shape, 'Round') as shape, 
+        d.custom_shape, 
+        SUM(COALESCE(d.weight_ct, d.weight, 0)) as total_issued
       FROM material_diamond_items d
       JOIN materials m ON d.material_entry_id = m.id
       WHERE m.direction = 'OUTWARD'
-      GROUP BY d.size_mm, d.shape, d.custom_shape
+      GROUP BY COALESCE(d.size_mm, 2.5), COALESCE(d.shape, 'Round'), d.custom_shape
     `);
 
     const stockMap = {};
@@ -107,11 +154,12 @@ router.get('/diamond-stock', async (req, res) => {
 
     res.json({ diamondStock: stockMap });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching diamond stock:', err);
+    res.status(500).json({ error: err.message, code: err.code });
   }
 });
 
-// POST new material transaction with structured diamond child items
+// POST new material transaction with structured diamond child items (ATOMIC DATABASE TRANSACTION)
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -122,6 +170,7 @@ router.post('/', async (req, res) => {
       purity, 
       vendorName, 
       manufacturerId, 
+      jobId,
       price, 
       totalAmount, 
       notes, 
@@ -131,26 +180,64 @@ router.post('/', async (req, res) => {
     } = req.body;
 
     if (!direction || !materialType) {
-      return res.status(400).json({ error: 'Direction and materialType are required' });
+      return res.status(400).json({ error: 'direction and materialType are required fields.' });
+    }
+
+    if (!vendorName || !vendorName.trim()) {
+      return res.status(400).json({ error: 'vendorName is required.' });
     }
 
     await client.query('BEGIN');
 
+    // Calculate total weight and total amount
+    let computedWeight = 0;
+    if (materialType === 'gold') {
+      computedWeight = parseFloat(weight || 0);
+    } else if (materialType === 'diamond') {
+      computedWeight = Array.isArray(diamondItems)
+        ? diamondItems.reduce((sum, d) => sum + (parseFloat(d.weight || d.weightCt || 0) || 0), 0)
+        : parseFloat(weight || 0);
+    } else if (materialType === 'gemstone') {
+      computedWeight = Array.isArray(gemstoneItems)
+        ? gemstoneItems.reduce((sum, g) => sum + (parseFloat(g.weight || 0) || 0), 0)
+        : parseFloat(weight || 0);
+    }
+
+    const priceVal = (price !== undefined && price !== null && price !== '') ? parseFloat(price) : null;
+    let finalTotalAmount = null;
+    if (totalAmount !== undefined && totalAmount !== null && totalAmount !== '') {
+      finalTotalAmount = parseFloat(totalAmount);
+    } else if (priceVal !== null) {
+      finalTotalAmount = computedWeight * priceVal;
+    }
+
     // 1. Insert Parent Material Entry
-    const calcTotal = parseFloat(totalAmount || (weight * price) || 0);
     const parentRes = await client.query(
-      `INSERT INTO materials (direction, material_type, gold_weight, gold_purity, vendor_name, manufacturer_id, price, total_amount, notes, photo_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING *`,
+      `INSERT INTO materials (
+        direction, 
+        material_type, 
+        weight, 
+        purity, 
+        vendor_name, 
+        manufacturer_id, 
+        job_id, 
+        price, 
+        total_amount, 
+        notes, 
+        photo_url
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *`,
       [
         direction,
         materialType,
-        materialType === 'gold' ? parseFloat(weight || 0) : 0,
+        computedWeight,
         materialType === 'gold' ? (purity || '24K') : null,
-        vendorName || 'General Supplier',
+        vendorName.trim(),
         manufacturerId || null,
-        parseFloat(price || 0),
-        calcTotal,
+        jobId || null,
+        priceVal,
+        finalTotalAmount,
         notes || '',
         photoUrl || ''
       ]
@@ -165,7 +252,7 @@ router.post('/', async (req, res) => {
         const itemWeight = parseFloat(item.weight || item.weightCt || 0);
         const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
         const itemShape = item.shape || 'Round';
-        const itemCustomShape = item.customShape || null;
+        const itemCustomShape = item.shape === 'Other' ? (item.customShape || null) : null;
 
         if (itemWeight > 0) {
           const dRes = await client.query(
@@ -192,12 +279,16 @@ router.post('/', async (req, res) => {
     const savedGemstoneItems = [];
     if (materialType === 'gemstone' && Array.isArray(gemstoneItems)) {
       for (const item of gemstoneItems) {
-        if (item.weight || item.size) {
+        const itemWeight = parseFloat(item.weight || 0);
+        const itemSize = item.size || 'Standard';
+        const itemType = item.stoneType || 'Gemstone';
+
+        if (itemWeight > 0 || itemSize) {
           const gRes = await client.query(
             `INSERT INTO material_gemstone_items (material_entry_id, weight, size, stone_type)
              VALUES ($1, $2, $3, $4)
              RETURNING *`,
-            [newMaterial.id, parseFloat(item.weight || 0), item.size || 'Standard', item.stoneType || 'Gemstone']
+            [newMaterial.id, itemWeight, itemSize, itemType]
           );
           savedGemstoneItems.push({
             id: gRes.rows[0].id,
@@ -216,7 +307,7 @@ router.post('/', async (req, res) => {
         `UPDATE manufacturers 
          SET gold_remaining = gold_remaining + $1, jobs_ongoing = jobs_ongoing + 1 
          WHERE id = $2`,
-        [parseFloat(weight || 0), manufacturerId]
+        [computedWeight, manufacturerId]
       );
     }
 
@@ -233,7 +324,16 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error('\n[MATERIAL CREATE ERROR]');
+    console.error(`materialType: ${req.body ? req.body.materialType : 'unknown'}`);
+    console.error('request body:', JSON.stringify(req.body, null, 2));
+    console.error('database error:', err.message);
+    console.error('postgres error code:', err.code);
+    res.status(500).json({ 
+      error: err.message, 
+      code: err.code,
+      detail: err.detail 
+    });
   } finally {
     client.release();
   }

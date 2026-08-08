@@ -12,11 +12,11 @@ export default function MaterialModal({
   // 1. Material Selection
   const [materialType, setMaterialType] = useState('gold'); // 'gold', 'diamond', 'gemstone'
   
-  // 2. Common Fields State
+  // 2. Common Fields State (No hardcoded fake price defaults)
   const [dateTime, setDateTime] = useState('');
   const [vendorName, setVendorName] = useState('');
   const [goldWeight, setGoldWeight] = useState('');
-  const [price, setPrice] = useState('7200');
+  const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
 
   // 3. Gold Specific Fields State
@@ -46,22 +46,10 @@ export default function MaterialModal({
 
       if (defaultCategory) {
         setMaterialType(defaultCategory.toLowerCase());
-        updateDefaultPrice(defaultCategory.toLowerCase());
       }
+      setErrors({});
     }
   }, [isOpen, defaultCategory]);
-
-  const updateDefaultPrice = (mat) => {
-    if (mat === 'gold') {
-      setPrice('7200');
-      setPurity('24K');
-    } else if (mat === 'diamond') {
-      setPrice('45000');
-    } else {
-      setPrice('12000');
-    }
-    setErrors({});
-  };
 
   if (!isOpen) return null;
 
@@ -100,14 +88,14 @@ export default function MaterialModal({
         ? diamondItems.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0)
         : gemstoneItems.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0));
 
-  const priceNum = parseFloat(price) || 0;
-  const totalAmount = totalCalculatedWeight * priceNum;
+  const priceNum = price !== '' ? parseFloat(price) : null;
+  const totalAmount = (priceNum !== null && totalCalculatedWeight > 0) ? (totalCalculatedWeight * priceNum) : null;
 
   const goldPurityOptions = ['24K', '23K', '22K', '21K', '20K', '18K', '14K', '10K', '9K'];
 
   const handleMaterialChange = (mat) => {
     setMaterialType(mat);
-    updateDefaultPrice(mat);
+    setErrors({});
   };
 
   const handlePhotoUpload = (e, source) => {
@@ -129,8 +117,14 @@ export default function MaterialModal({
     const errs = {};
     if (!vendorName.trim()) errs.vendorName = 'Vendor Name is required.';
     if (totalCalculatedWeight <= 0) errs.weight = 'Total weight must be greater than zero.';
-    if (!price || parseFloat(price) <= 0) errs.price = 'Price must be greater than zero.';
     if (materialType === 'gold' && !purity) errs.purity = 'Purity is mandatory for Gold.';
+
+    if (materialType === 'diamond') {
+      const invalidCustom = diamondItems.some(d => (parseFloat(d.weight) || 0) > 0 && d.shape === 'Other' && (!d.customShape || !d.customShape.trim()));
+      if (invalidCustom) {
+        errs.diamond = 'Please specify custom shape for diamond items with shape "Other".';
+      }
+    }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -151,7 +145,7 @@ export default function MaterialModal({
           weightCt: parseFloat(r.weight) || 0,
           sizeMm: parseFloat(r.sizeMm || 2.5),
           shape: r.shape || 'Round',
-          customShape: r.shape === 'Other' ? r.customShape : null
+          customShape: r.shape === 'Other' ? (r.customShape || '').trim() : null
         }))
       : [];
 
@@ -175,18 +169,20 @@ export default function MaterialModal({
       purity: materialType === 'gold' ? purity : null,
       diamondItems: finalDiamondItems,
       gemstoneItems: finalGemstoneItems,
-      vendorName,
-      price: parseFloat(price),
-      totalAmount,
-      photoUrl: photos[0] || 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=300',
+      vendorName: vendorName.trim(),
+      price: priceNum,
+      totalAmount: totalAmount,
+      photoUrl: photos[0] || '',
       photos,
-      notes
+      notes: notes.trim()
     };
 
     onSubmit(newEntry);
     onClose();
     setGoldWeight('');
     setVendorName('');
+    setPrice('');
+    setNotes('');
     setPhotos([]);
     setErrors({});
   };
@@ -284,6 +280,7 @@ export default function MaterialModal({
                   value={goldWeight} onChange={(e) => setGoldWeight(e.target.value)}
                   style={{ width: '100%', padding: '12px', borderRadius: '10px', border: errors.weight ? '2px solid #dc2626' : '1px solid #cbd5e1', marginTop: '4px', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
                 />
+                {errors.weight && <div style={{ color: '#dc2626', fontSize: '11px', fontWeight: '700', marginTop: '2px' }}>{errors.weight}</div>}
               </div>
 
               <div>
@@ -297,11 +294,14 @@ export default function MaterialModal({
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '12px', fontWeight: '800', color: '#b45309' }}>PRICE PER GRAM (₹) *</label>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#b45309' }}>PRICE PER GRAM (₹)</label>
                 <div style={{ position: 'relative', marginTop: '4px' }}>
                   <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#b45309' }}>₹</span>
                   <input
-                    type="number" value={price} onChange={(e) => setPrice(e.target.value)}
+                    type="number" 
+                    placeholder="e.g. 7200"
+                    value={price} 
+                    onChange={(e) => setPrice(e.target.value)}
                     style={{ width: '100%', padding: '12px 12px 12px 28px', borderRadius: '10px', border: errors.price ? '2px solid #dc2626' : '1px solid #cbd5e1', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -334,6 +334,9 @@ export default function MaterialModal({
                 ))}
               </div>
 
+              {errors.diamond && <div style={{ color: '#dc2626', fontSize: '11px', fontWeight: '700', marginTop: '6px' }}>{errors.diamond}</div>}
+              {errors.weight && <div style={{ color: '#dc2626', fontSize: '11px', fontWeight: '700', marginTop: '6px' }}>{errors.weight}</div>}
+
               <button
                 type="button" onClick={handleAddDiamondItem}
                 style={{ width: '100%', marginTop: '10px', padding: '8px', borderRadius: '8px', background: '#ffffff', color: '#2563eb', border: '1px solid #93c5fd', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
@@ -342,11 +345,14 @@ export default function MaterialModal({
               </button>
 
               <div style={{ marginTop: '10px' }}>
-                <label style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af' }}>PRICE PER CARAT (₹) *</label>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af' }}>PRICE PER CARAT (₹)</label>
                 <div style={{ position: 'relative', marginTop: '4px' }}>
                   <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#1e40af' }}>₹</span>
                   <input
-                    type="number" value={price} onChange={(e) => setPrice(e.target.value)}
+                    type="number" 
+                    placeholder="e.g. 45000"
+                    value={price} 
+                    onChange={(e) => setPrice(e.target.value)}
                     style={{ width: '100%', padding: '10px 10px 10px 28px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -383,6 +389,8 @@ export default function MaterialModal({
                 ))}
               </div>
 
+              {errors.weight && <div style={{ color: '#dc2626', fontSize: '11px', fontWeight: '700', marginTop: '6px' }}>{errors.weight}</div>}
+
               <button
                 type="button" onClick={handleAddGemstoneItem}
                 style={{ width: '100%', marginTop: '10px', padding: '8px', borderRadius: '8px', background: '#ffffff', color: '#9333ea', border: '1px solid #d8b4fe', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
@@ -391,11 +399,14 @@ export default function MaterialModal({
               </button>
 
               <div style={{ marginTop: '10px' }}>
-                <label style={{ fontSize: '12px', fontWeight: '800', color: '#6b21a8' }}>PRICE PER CARAT (₹) *</label>
+                <label style={{ fontSize: '12px', fontWeight: '800', color: '#6b21a8' }}>PRICE PER CARAT (₹)</label>
                 <div style={{ position: 'relative', marginTop: '4px' }}>
                   <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#6b21a8' }}>₹</span>
                   <input
-                    type="number" value={price} onChange={(e) => setPrice(e.target.value)}
+                    type="number" 
+                    placeholder="e.g. 12000"
+                    value={price} 
+                    onChange={(e) => setPrice(e.target.value)}
                     style={{ width: '100%', padding: '10px 10px 10px 28px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -404,22 +415,24 @@ export default function MaterialModal({
           )}
 
           {/* COMMON FIELD 3: READ-ONLY AUTO-CALCULATED TOTAL AMOUNT */}
-          <div style={{
-            background: '#ecfdf5', padding: '14px 16px', borderRadius: '16px', border: '1.5px solid #059669',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-          }}>
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#047857', textTransform: 'uppercase' }}>
-                TOTAL AMOUNT (AUTO-CALCULATED)
+          {totalAmount !== null && (
+            <div style={{
+              background: '#ecfdf5', padding: '14px 16px', borderRadius: '16px', border: '1.5px solid #059669',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: '800', color: '#047857', textTransform: 'uppercase' }}>
+                  TOTAL AMOUNT (AUTO-CALCULATED)
+                </span>
+                <p style={{ fontSize: '11px', color: '#065f46', margin: '2px 0 0 0', fontWeight: '500' }}>
+                  {totalCalculatedWeight.toFixed(2)} {materialType === 'gold' ? 'g' : 'ct'} × ₹{priceNum}
+                </p>
+              </div>
+              <span style={{ fontSize: '20px', fontWeight: '900', color: '#047857' }}>
+                ₹{totalAmount.toLocaleString('en-IN')}
               </span>
-              <p style={{ fontSize: '11px', color: '#065f46', margin: '2px 0 0 0', fontWeight: '500' }}>
-                {totalCalculatedWeight.toFixed(2)} {materialType === 'gold' ? 'g' : 'ct'} × ₹{priceNum}
-              </p>
             </div>
-            <span style={{ fontSize: '20px', fontWeight: '900', color: '#047857' }}>
-              ₹{totalAmount.toLocaleString('en-IN')}
-            </span>
-          </div>
+          )}
 
           {/* COMMON FIELD 4: PHOTO ATTACHMENT CAPSULE WORKFLOW */}
           <div>

@@ -6,7 +6,7 @@ const { pool } = require('../db');
 async function getAvailableDiamondStock(client, sizeMm, shape, customShape) {
   const shapeKey = shape === 'Other' ? (customShape || 'Other') : shape;
   const inRes = await client.query(
-    `SELECT COALESCE(SUM(d.weight_ct), 0) as received
+    `SELECT COALESCE(SUM(COALESCE(d.weight_ct, d.weight, 0)), 0) as received
      FROM material_diamond_items d
      JOIN materials m ON d.material_entry_id = m.id
      WHERE m.direction = 'INWARD' AND d.size_mm = $1 AND (d.shape = $2 OR (d.shape = 'Other' AND d.custom_shape = $2))`,
@@ -14,7 +14,7 @@ async function getAvailableDiamondStock(client, sizeMm, shape, customShape) {
   );
 
   const outRes = await client.query(
-    `SELECT COALESCE(SUM(d.weight_ct), 0) as issued
+    `SELECT COALESCE(SUM(COALESCE(d.weight_ct, d.weight, 0)), 0) as issued
      FROM material_diamond_items d
      JOIN materials m ON d.material_entry_id = m.id
      WHERE m.direction = 'OUTWARD' AND d.size_mm = $1 AND (d.shape = $2 OR (d.shape = 'Other' AND d.custom_shape = $2))`,
@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
     const jobsRes = await pool.query('SELECT * FROM jobs ORDER BY created_at DESC');
     const jobs = jobsRes.rows;
 
-    const diamondRes = await pool.query('SELECT * FROM job_diamond_items ORDER BY created_at ASC');
+    const diamondRes = await pool.query('SELECT id, job_id, COALESCE(weight_ct, weight, 0) as weight_ct, size_mm, shape, custom_shape, created_at FROM job_diamond_items ORDER BY created_at ASC');
     const gemstoneRes = await pool.query('SELECT * FROM job_gemstone_items ORDER BY created_at ASC');
 
     const jobsWithChildren = jobs.map(j => {
@@ -69,7 +69,8 @@ router.get('/', async (req, res) => {
 
     res.json({ jobs: jobsWithChildren });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching jobs:', err);
+    res.status(500).json({ error: err.message, code: err.code });
   }
 });
 
@@ -98,7 +99,7 @@ router.post('/', async (req, res) => {
       const itemWeight = parseFloat(item.weight || item.weightCt || 0);
       const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
       const itemShape = item.shape || 'Round';
-      const itemCustomShape = item.customShape || null;
+      const itemCustomShape = item.shape === 'Other' ? item.customShape : null;
 
       if (itemWeight > 0) {
         const available = await getAvailableDiamondStock(client, itemSize, itemShape, itemCustomShape);
@@ -146,7 +147,7 @@ router.post('/', async (req, res) => {
         const itemWeight = parseFloat(item.weight || item.weightCt || 0);
         const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
         const itemShape = item.shape || 'Round';
-        const itemCustomShape = item.customShape || null;
+        const itemCustomShape = item.shape === 'Other' ? item.customShape : null;
 
         if (itemWeight > 0) {
           const dRes = await client.query(
@@ -173,10 +174,11 @@ router.post('/', async (req, res) => {
     // 4. AUTOMATIC MATERIAL OUT: Generate linked Material OUT record for consumed Diamonds
     if (savedDiamonds.length > 0) {
       const matOutRes = await client.query(
-        `INSERT INTO materials (direction, material_type, gold_weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes, photo_url)
-         VALUES ('OUTWARD', 'diamond', 0, 'Auto Issued from Vault', $1, $2, 45000, $3, $4, $5)
+        `INSERT INTO materials (direction, material_type, weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes, photo_url)
+         VALUES ('OUTWARD', 'diamond', $1, 'Auto Issued from Vault', $2, $3, 45000, $4, $5, $6)
          RETURNING id`,
         [
+          totalDiamondWeight,
           manufacturerId || null,
           newJob.id,
           totalDiamondWeight * 45000,
@@ -240,7 +242,8 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error('Error creating job:', err);
+    res.status(500).json({ error: err.message, code: err.code });
   } finally {
     client.release();
   }
@@ -263,7 +266,7 @@ router.put('/:id', async (req, res) => {
       const itemWeight = parseFloat(item.weight || item.weightCt || 0);
       const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
       const itemShape = item.shape || 'Round';
-      const itemCustomShape = item.customShape || null;
+      const itemCustomShape = item.shape === 'Other' ? item.customShape : null;
 
       if (itemWeight > 0) {
         const available = await getAvailableDiamondStock(client, itemSize, itemShape, itemCustomShape);
@@ -302,7 +305,7 @@ router.put('/:id', async (req, res) => {
         const itemWeight = parseFloat(item.weight || item.weightCt || 0);
         const itemSize = parseFloat(item.sizeMm || item.size || 2.5);
         const itemShape = item.shape || 'Round';
-        const itemCustomShape = item.customShape || null;
+        const itemCustomShape = item.shape === 'Other' ? item.customShape : null;
 
         if (itemWeight > 0) {
           const dRes = await client.query(
@@ -329,10 +332,11 @@ router.put('/:id', async (req, res) => {
     // 5. Re-generate new Material OUT for the updated diamond items
     if (updatedDiamonds.length > 0) {
       const matOutRes = await client.query(
-        `INSERT INTO materials (direction, material_type, gold_weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes)
-         VALUES ('OUTWARD', 'diamond', 0, 'Auto Issued from Vault', $1, $2, 45000, $3, $4)
+        `INSERT INTO materials (direction, material_type, weight, vendor_name, manufacturer_id, job_id, price, total_amount, notes)
+         VALUES ('OUTWARD', 'diamond', $1, 'Auto Issued from Vault', $2, $3, 45000, $4, $5)
          RETURNING id`,
         [
+          totalDiamondWeight,
           updatedJob.manufacturer_id || null,
           id,
           totalDiamondWeight * 45000,
@@ -383,7 +387,8 @@ router.put('/:id', async (req, res) => {
     });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error('Error updating job:', err);
+    res.status(500).json({ error: err.message, code: err.code });
   } finally {
     client.release();
   }
@@ -401,7 +406,8 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Job deleted and diamond stock returned to vault' });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error('Error deleting job:', err);
+    res.status(500).json({ error: err.message, code: err.code });
   } finally {
     client.release();
   }

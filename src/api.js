@@ -1,30 +1,49 @@
-// Bulletproof API Client with Cloud Render & Local Server Fallback
+// Bulletproof API Client with True Network Fallback & Error Transparency
 
 const LOCAL_API_BASE = 'http://localhost:5000/api';
 const CLOUD_API_BASE = 'https://ark-z9mw.onrender.com/api';
 
 async function fetchWithFallback(endpoint, options = {}) {
-  // 1. Try local server first (for fast live development)
+  const mergedHeaders = {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    ...(options.headers || {})
+  };
+
+  const finalOptions = {
+    ...options,
+    cache: 'no-store',
+    headers: mergedHeaders
+  };
+
+  // 1. Try local server first
   try {
-    const res = await fetch(`${LOCAL_API_BASE}${endpoint}`, options);
-    if (res.ok) {
-      return await res.json();
+    const res = await fetch(`${LOCAL_API_BASE}${endpoint}?_t=${Date.now()}`, finalOptions);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      console.error(`[API ERROR ${res.status}] ${endpoint}:`, errData);
+      return { error: errData.error || `HTTP ${res.status}`, status: res.status, ...errData };
     }
+    return await res.json();
   } catch (err) {
-    // Local server offline, continue to cloud
+    // Only fall back to cloud if fetch threw a Network Error (e.g. server is down / connection refused)
+    console.warn(`Local API offline at ${LOCAL_API_BASE} (${err.message}), trying cloud fallback for ${endpoint}...`);
   }
 
-  // 2. Try cloud server if local is offline
+  // 2. Try cloud server ONLY if local was completely offline
   try {
-    const res = await fetch(`${CLOUD_API_BASE}${endpoint}`, options);
-    if (res.ok) {
-      return await res.json();
+    const res = await fetch(`${CLOUD_API_BASE}${endpoint}?_t=${Date.now()}`, finalOptions);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      console.error(`[CLOUD API ERROR ${res.status}] ${endpoint}:`, errData);
+      return { error: errData.error || `HTTP ${res.status}`, status: res.status, ...errData };
     }
+    return await res.json();
   } catch (err) {
-    console.warn(`Both local and cloud API endpoints failed for ${endpoint}`, err);
+    console.error(`Both local and cloud API endpoints unreachable for ${endpoint}:`, err);
+    return null;
   }
-
-  return null;
 }
 
 export const API = {
